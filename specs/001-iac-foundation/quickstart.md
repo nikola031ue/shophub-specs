@@ -93,3 +93,19 @@ Expected: `shophub upgraded`, the other two `unchanged`. Revert afterwards.
 | CRD wait (placeholders) | each release prints `crds: none` |
 
 Switch back with `kubectl config use-context docker-desktop`.
+
+## Validation log
+
+**2026-11-21** — Docker Desktop Kubernetes v1.36.1 (fresh cluster, node `desktop-control-plane`),
+Git Bash, helm v3.17.3, yq v4.54.3, jq 1.8.2. helm-charts `main` @ `32b9317`, kube-state `main`
+@ `86607ba` plus fix PR kube-state-spec#2.
+
+| Scenario | Result | Notes |
+|----------|--------|-------|
+| 1 Layout | pass | Both trees match §5.3 plus the expected extras; `layout` green on `main` in both repos |
+| 2 Anonymous pull | pass | Four × `version: 0.1.0` with an empty registry config |
+| 3 CI blocks bad changes | pass | Draft PRs helm-charts-spec#2–#4, all `BLOCKED`, closed unmerged: values change w/o bump → `version`; template error → `lint`, `template`, `install` (+`version`); deleted `hpa.yaml` → `layout` (+`version`) |
+| 4 Bring-up on empty cluster | pass | `3 installed` in **24 s** (old script), **15 s** after the fix (SC-002 < 15 min); `shophub` pod `Running` |
+| 5 Idempotent re-run | pass | `0 installed, 0 upgraded, 3 unchanged` in 8–10 s; one `shophub` revision |
+| 6 Change one release | pass after fix | `replicaCount: 2` → only `shophub upgraded`. **Bug**: reverting to `{}` did not revert (Helm 3 reuses old values when none are supplied); every later run re-upgraded. Fixed with `--reset-values` (kube-state-spec#2): 1→2→1 replicas, then `3 unchanged` |
+| 7 Safety checks | pass after fix | Wrong context → exit 4 with the expected message; tag `9.9.9` → exit 6 naming `shophub` and the version, `shophub-discord` not attempted; every release `crds: none`. **Bug**: a malformed `values.yaml` exited 1 mid-run with a raw yq error; now all release folders are validated first → exit 3 before any install |

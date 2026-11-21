@@ -43,7 +43,7 @@ root `C:\Git\shophub-workspace\`. OCI base for all charts: `oci://ghcr.io/nikola
 - [X] T003 [P] Add `kube-state/.gitattributes` with the same LF rules as T002 (critical for `bring-up.sh` in Git Bash and CI)
 - [X] T004 [P] Add `helm-charts/.gitignore` ignoring `*.tgz`, `.cr-release-packages/`, `.idea/`, `.vscode/`
 - [X] T005 [P] Add `kube-state/.gitignore` ignoring `.idea/`, `.vscode/`, `*.local.yaml`, `.env*`
-- [ ] T006 Install local tools on the maintainer machine per quickstart.md Prerequisites (`helm` ≥ 3.8, `yq` v4 mikefarah, `jq`; `kubectl` and `gh` already present) and confirm `kubectl config get-contexts` lists `docker-desktop`
+- [X] T006 Install local tools on the maintainer machine per quickstart.md Prerequisites (`helm` ≥ 3.8, `yq` v4 mikefarah, `jq`; `kubectl` and `gh` already present) and confirm `kubectl config get-contexts` lists `docker-desktop`
 
 ---
 
@@ -125,8 +125,8 @@ to GHCR, never overwriting, and verify anonymous pull.
 - [X] T035 [US2] Add job `install` (PR only) to `helm-charts/.github/workflows/charts.yaml`: create a kind cluster with a pinned kind action version, `helm install --wait --timeout 5m --create-namespace` each chart with default values into its own namespace, then `helm list -A` shows all `deployed` (FR-005)
 - [X] T036 [US2] Add job `publish` (push to `main` only; `needs: [layout, lint, template]`; `permissions: packages: write`; `concurrency: publish`) to `helm-charts/.github/workflows/charts.yaml`: `echo "$GITHUB_TOKEN" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin`, run `publish.sh`, bats for publish (Principle VI — no stored secret)
 - [X] T037 [US2] Add job `verify-public` (`needs: publish`) to `helm-charts/.github/workflows/charts.yaml`: with no registry login, `helm show chart` every chart at its `Chart.yaml` version; fail with a message pointing to quickstart.md "Make packages public" (SC-005; `data-model.md` PublishedChartArtifact.visibility)
-- [ ] T038 [US2] Open the helm-charts PR (contains US1 + US2 helm-charts work) and let every check run once; **before merging**, configure branch protection on `main` of `nikola031ue/helm-charts-spec` via `gh api` (required checks `layout`, `lint`, `template`, `version`, `install`; require linear history; block force-push and direct push; `enforce_admins: true` so the repo owner cannot bypass the rules; 0 required approvals per D-1) and record the command in `helm-charts/README.md`; then get all checks green, self-review the full diff (D-1), squash-merge, confirm `publish` pushed four charts at `0.1.0` (Constitution Principle II)
-- [ ] T039 [US2] Set each GHCR package `charts/shop`, `charts/shophub`, `charts/shop-operator`, `charts/shophub-discord` to Public (GitHub → Packages → Package settings), re-run `verify-public` until green (research.md R8)
+- [X] T038 [US2] Open the helm-charts PR (contains US1 + US2 helm-charts work) and let every check run once; **before merging**, configure branch protection on `main` of `nikola031ue/helm-charts-spec` via `gh api` (required checks `layout`, `lint`, `template`, `version`, `install`; require linear history; block force-push and direct push; `enforce_admins: true` so the repo owner cannot bypass the rules; 0 required approvals per D-1) and record the command in `helm-charts/README.md`; then get all checks green, self-review the full diff (D-1), squash-merge, confirm `publish` pushed four charts at `0.1.0` (Constitution Principle II)
+- [X] T039 [US2] Set each GHCR package `charts/shop`, `charts/shophub`, `charts/shop-operator`, `charts/shophub-discord` to Public (GitHub → Packages → Package settings), re-run `verify-public` until green (research.md R8)
 
 **Checkpoint**: US2 complete — four charts pullable anonymously at `0.1.0`
 
@@ -153,7 +153,7 @@ to GHCR, never overwriting, and verify anonymous pull.
 - [X] T044 [US3] Add jobs `charts-exist` (anonymous `helm show chart <url> --version <tag>` for every release, SC-005) and `render` (`helm template <release> <url> --version <tag> -f values.yaml` for every release, output piped to `kube-state/.github/scripts/check-images.sh` — a copy of the helm-charts script from T033 with its bats cases in `kube-state/.github/tests/check-images.bats` — so a `values.yaml` override to a missing or `latest` image tag fails, Constitution Principle II) to `kube-state/.github/workflows/validate.yaml` (`data-model.md` ReleaseDefinition.chart version, ReleaseDefinition.overrides)
 - [X] T045 [US3] Add job `e2e` to `kube-state/.github/workflows/validate.yaml`: create kind cluster (pinned action), `kubectl config rename-context kind-<name> docker-desktop`, run `./bring-up.sh` and assert `3 installed`, run again and assert `0 installed, 0 upgraded, 3 unchanged` and `helm history shophub -n shophub` has one revision (SC-003, research.md R10)
 - [X] T046 [US3] Complete the "Bring-up" section of `kube-state/README.md`: prerequisites (Docker Desktop Kubernetes, helm ≥ 3.8, yq v4, jq, kubectl; winget command), the single command `./bring-up.sh`, env vars, exit codes table (link contract), expected output, re-run/update behaviour, how to reset to an empty cluster, note that Flux may be adopted later without changing release folders (FR-017, FR-018)
-- [ ] T047 [US3] Open the kube-state PR (contains US1 + US3 kube-state work) and let every check run once; **before merging**, configure branch protection on `main` of `nikola031ue/kube-state-spec` via `gh api` (required checks `layout`, `schema`, `charts-exist`, `render`, `secrets-scan`, `unit`, `e2e`; linear history; no force-push or direct push; `enforce_admins: true`; 0 approvals per D-1) and record the command in `kube-state/README.md`; then get all checks green (incl. `e2e`), self-review (D-1), squash-merge (Constitution Principle II)
+- [X] T047 [US3] Open the kube-state PR (contains US1 + US3 kube-state work) and let every check run once; **before merging**, configure branch protection on `main` of `nikola031ue/kube-state-spec` via `gh api` (required checks `layout`, `schema`, `charts-exist`, `render`, `secrets-scan`, `unit`, `e2e`; linear history; no force-push or direct push; `enforce_admins: true`; 0 approvals per D-1) and record the command in `kube-state/README.md`; then get all checks green (incl. `e2e`), self-review (D-1), squash-merge (Constitution Principle II)
 
 **Checkpoint**: All user stories complete and independently validated
 
@@ -163,10 +163,10 @@ to GHCR, never overwriting, and verify anonymous pull.
 
 **Purpose**: Repository governance and end-to-end validation
 
-- [ ] T048 [P] Verify branch protection on `nikola031ue/helm-charts-spec` (set in T038): `gh api repos/nikola031ue/helm-charts-spec/branches/main/protection` lists the five required checks, linear history and `enforce_admins.enabled: true`; a direct `git push` of a test commit to `main` by the repo owner is rejected
-- [ ] T049 [P] Verify branch protection on `nikola031ue/kube-state-spec` (set in T047) the same way as T048, expecting the seven required checks
-- [ ] T050 Run quickstart.md Scenarios 1–7 on Docker Desktop after a Kubernetes reset; record timings (SC-002 < 15 min) and results in `shophub-specs/specs/001-iac-foundation/quickstart.md` under a new "Validation log" section
-- [ ] T051 [P] Decide on renaming GitHub repos to `helm-charts` / `kube-state` (research.md R13); if renamed, update git remotes and branch-protection commands in both READMEs (OCI paths are unaffected)
+- [X] T048 [P] Verify branch protection on `nikola031ue/helm-charts-spec` (set in T038): `gh api repos/nikola031ue/helm-charts-spec/branches/main/protection` lists the five required checks, linear history and `enforce_admins.enabled: true`; a direct `git push` of a test commit to `main` by the repo owner is rejected
+- [X] T049 [P] Verify branch protection on `nikola031ue/kube-state-spec` (set in T047) the same way as T048, expecting the seven required checks
+- [X] T050 Run quickstart.md Scenarios 1–7 on Docker Desktop after a Kubernetes reset; record timings (SC-002 < 15 min) and results in `shophub-specs/specs/001-iac-foundation/quickstart.md` under a new "Validation log" section
+- [X] T051 [P] Decide on renaming GitHub repos to `helm-charts` / `kube-state` (research.md R13); if renamed, update git remotes and branch-protection commands in both READMEs (OCI paths are unaffected)
 
 ---
 
@@ -268,3 +268,24 @@ Task: "release files in kube-state/clusters/local/{shop-operator,shophub,shophub
 - Files are staged (executable bits set) on branch `001-iac-foundation` in both repos; nothing
   is committed or pushed. Remaining tasks need GitHub/GHCR or the local cluster: T038, T039,
   T047–T051.
+
+## Validation log (2026-11-21, continued)
+
+- T006: installed with winget. Its default `Helm.Helm` is now Helm **4**, so it was pinned with
+  `winget install Helm.Helm --version 3.17.3` to match CI and the plan.
+- T038/T047: both skeleton PRs were merged **before** branch protection was applied and as
+  **merge commits** (`32b9317`, `86607ba`), against Principle II (linear history) and the task
+  order. History is not rewritten; protection with `required_linear_history` is applied
+  afterwards so that this cannot recur.
+- T039: packages Public; `verify-public` green on `main`.
+- T050: scenarios 1, 2, 4–7 pass on Docker Desktop (see quickstart.md → Validation log).
+  Two bring-up bugs found and fixed in kube-state-spec#2 (`--reset-values`; validate all release
+  folders first → exit 3); contracts/bring-up-cli.md updated. Scenario 3 passed after protection (PRs #2–#4 blocked, closed).
+- T051: decided **not** to rename; the `-spec` suffix is intentional. READMEs and remotes unchanged.
+- Branch protection applied to both repos on 2026-11-21 (README commands), plus repo settings
+  squash-only merges and auto-delete of merged branches. Fix PR kube-state-spec#2 had already
+  been merged as a merge commit (`82ecc5f`) shortly before; same Principle II deviation as above,
+  history not rewritten. From here on, non-linear merges are blocked by the settings.
+- T048/T049: API read-back shows the 5 resp. 7 required checks, `strict`, `enforce_admins`,
+  linear history, no force-push/deletion, 0 approvals; a direct push of an empty commit to
+  `main` was rejected (`GH006 Protected branch update failed`) in both repos.
