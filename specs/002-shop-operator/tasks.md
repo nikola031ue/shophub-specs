@@ -113,7 +113,7 @@ already contain the DiscordChannel controller from US3.
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [X] T024 Prerequisite: a Discord server, bot token and guild ID (quickstart Prerequisites). First run quickstart Scenario 2a step 1 (upgrade from the feature 001 releases), then reset Kubernetes and run Scenarios 1, 2, 6, 3, 2a step 2, 4, 5, 7 in that order on Docker Desktop; record timings for SC-001, SC-002, SC-003, SC-005, SC-006 and results in a "Validation log" section of `specs/002-shop-operator/quickstart.md`; delete namespace `qs` afterwards
-- [ ] T025 [P] Self-review all three merged diffs against the plan's Constitution Check and Complexity Tracking; grep all repos for secret-looking values (SC-007); record the outcome and any deviations in the implementation log at the end of `specs/002-shop-operator/tasks.md`
+- [X] T025 [P] Self-review all three merged diffs against the plan's Constitution Check and Complexity Tracking; grep all repos for secret-looking values (SC-007); record the outcome and any deviations in the implementation log at the end of `specs/002-shop-operator/tasks.md`
 
 ---
 
@@ -400,3 +400,46 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
   already-created channel. Bot permissions are documented in the shop-operator README.
 - Scenario 1 limitation: envtest can't run under `docker --network none`; offline behaviour
   relies on the tests using only local fakes.
+
+### 2026-11-23 — T025 self-review
+
+Reviewed the merged 002 diffs: shop-operator `7c97ae8..e1b3da8` (82 files, 12.7k lines of
+vendored test CRDs), helm-charts `32b9317..5db7710` (13 files), kube-state `82ecc5f..5f0c1fe`
+(17 files). Checked against the plan's Constitution Check (v1.2.1) and Complexity Tracking.
+
+| Principle | Result | Evidence |
+|-----------|--------|----------|
+| I Layout | pass | Both charts keep `Chart.yaml`/`values.yaml`/`templates/`; `cnpg/` and `redis-operator/` are standard release folders; upstream charts aren't copied into helm-charts; the allowlist is in `.github/` |
+| II Repo/trunk | pass | Each repo is squash-only with protected `main` (shop-operator: lint, test); CI is green on every `main` HEAD. Image `0.1.0` comes from a tag, placeholder is `nginx:1.27.3`, and `latest` is rejected by `Config.Validate` and `resources` |
+| III Tested | pass | 52 envtest specs plus unit packages; the bring-up bug fix got regression tests (bats 94/94); chart `install` and kube-state `e2e` stay required |
+| IV Sepolia | pass | Wallet is offline only (go-ethereum keygen, EIP-55); no RPC client in the code |
+| V Platform/API | pass (tracked) | The ClusterRole has no `create`/`delete` on shops, wallets or discordchannels, so user resources are never created. Derived resources get `SetControllerReference` (Shop children, Wallet key Secret, DiscordChannel webhook Secret). No wildcards in RBAC. Hand changes stayed in `qs`, which is now deleted; the token Secret is the only bootstrap object |
+| VI Secrets | pass | Values files hold only a Secret *name* and the guild ID. `DATABASE_URL` comes via `secretKeyRef`. CI uses `GITHUB_TOKEN` only. Leak tests exist (wallet, discordchannel). History sweep below is clean |
+| VII Observability | deviation (recorded) | Unchanged; carried over to the observability feature as recorded in Complexity Tracking |
+
+Secret sweep (SC-007): `git grep` over **all commits** of shop-operator, helm-charts, kube-state
+and shophub-specs for Discord webhook URLs, Discord bot tokens, PEM private keys, GitHub tokens
+and `private_key`-style 64-hex values: **0 matches**. Bare 64-hex values in HEAD are only
+checksums (go.sum, Spec Kit manifests, image digests). No `.env`, key, kubeconfig or
+`settings.local` files are tracked. Cluster: `qs` is gone, and the only operator-managed Secret is
+`shophub/platform-alerts-discord-webhook`.
+
+Findings (reported only, nothing changed):
+
+- **R-1 MEDIUM — Secret read scope is cluster-wide.** The ClusterRole grants
+  `get/list/watch/create/update/patch/delete` on all Secrets. The label-filtered cache limits
+  what the operator *caches*, not what its ServiceAccount *may* read, and the uncached
+  `APIReader` can read any Secret. Complexity Tracking's mitigation ("Secret cache limited by
+  label") understates this. Options:
+  - (a) Reword the mitigation to say so plainly.
+  - (b) Later, read the token through a namespaced Role in `shop-operator-system` and restrict
+    cluster-wide Secret access with a ValidatingAdmissionPolicy or per-namespace Roles created
+    by the backend.
+- **R-2 LOW — kubebuilder scaffold still says `controller:latest`** (`Makefile` `IMG ?=`,
+  `config/manager/manager.yaml`). Not on any deploy path (the chart and the CI release use the
+  pinned tag), but it contradicts Principle II's "no latest". Fixing it needs a shop-operator PR.
+- **R-3 LOW — Redis for `database: light` runs without auth.** `REDIS_URL` has no credential (so
+  Principle VI holds), but any pod in the cluster can reach `<shop>-redis`. NetworkPolicies are
+  out of scope here; note for feature 3 / backend namespaces.
+- Info: the envtest network-isolation limitation (T024) and the unlabelled hand-created token
+  Secret (Complexity Tracking) remain as recorded.
