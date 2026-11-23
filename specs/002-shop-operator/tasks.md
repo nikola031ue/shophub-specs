@@ -374,3 +374,16 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
   - R1: all releases rendered locally and checked (CNPG `1.30.2`, OT `v0.27.0`); layout,
     schema and secrets OK.
   - kube-state-spec#3 opened; **not merged** (waiting for approval).
+- **Bug found by kube-state e2e (feature 001 `bring-up.sh`)**:
+  - The CRD wait passed helm's `--kube-context` to `kubectl wait`. kubectl only knows
+    `--context`, so every wait failed instantly ("unknown flag") and was misreported as a 120 s
+    timeout (exit 5).
+  - It was latent since 001: all 001 charts were placeholders without CRDs, and the kubectl test
+    stub accepted any flag. CNPG's real CRDs exposed it on the first e2e run of
+    kube-state-spec#3.
+  - Fix `c631db5`: separate `KC` (helm) and `KCTL` (kubectl) flags; kubectl's own error is now
+    printed. The kubectl stub rejects `--kube-context` like the real binary (3 tests turned red
+    first, as reproduction); 2 regression tests added → bats 94/94.
+- kube-state-spec#3 CI after the fix: all 7 checks green. e2e: `5 installed` with the CNPG,
+  Redis and shophub.io CRDs `Established`, re-run `5 unchanged`, wrong context refused.
+  **Not merged** — waiting for approval (T023 stays open until then).
