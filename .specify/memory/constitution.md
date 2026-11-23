@@ -1,22 +1,28 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.0.0 → 2.1.0
-Bump rationale: MINOR — Principle V guidance materially expanded: runtime state is split into
-user resources (Shop, Wallet, DiscordChannel; backend only) and derived resources (database
-CRs, workloads, services, secrets; shop-operator only, as owned children of a Shop). Chosen as
-MINOR by the maintainer: no existing compliant practice becomes non-compliant (no backend or
-operator code exists yet).
+Version change: 1.1.0 → 1.2.0 → 1.2.1 (both during feature 002-shop-operator)
 
-Modified principles:
-  - V. Declarative Deployment: Platform in Git, Shops via API — database CRs move from
-    "created only by the backend" to derived resources created only by the shop-operator;
-    least-privilege RBAC now also binds the shop-operator ServiceAccount (shop-operator chart).
+Version numbering note: the maintainer's numbering is authoritative. The ratified baseline is
+1.1.0 (commit 7e6d30e). Earlier drafts of this file printed 2.0.0 (and 2.1.0 after the first
+002 amendment); those labels are superseded and renumbered here as 1.1.0 and 1.2.0.
+
+1.1.0 → 1.2.0 — MINOR (2026-11-22)
+  Principle V material expansion: runtime state split into user resources (Shop, Wallet,
+  DiscordChannel; created only by the ShopHub backend) and derived resources (databases,
+  workloads, services, secrets; created only by the shop-operator as owned children);
+  least-privilege RBAC now also binds the shop-operator ServiceAccount.
+
+1.2.0 → 1.2.1 — PATCH (2026-11-23)
+  Principle V wording fix (002 analysis finding C1): derived resources are owned by the user
+  resource they realise (Shop, Wallet or DiscordChannel), not only by a Shop — covers a
+  Wallet's generated key Secret and a DiscordChannel's webhook Secret. No new obligation.
+
+Modified principles: V. Declarative Deployment: Platform in Git, Shops via API
 Added sections: none
 Removed sections: none
 Templates: none require changes (plan template's Constitution Check references Principles I–VII
 generically).
-Trigger: specs/002-shop-operator clarification (operator creates Shop databases).
 Follow-up TODOs: none
 -->
 
@@ -98,10 +104,12 @@ database operators (CloudNativePG, Redis operator) and all RBAC:
 
 - *User resources*: `Shop`, `Wallet` and `DiscordChannel` CRs. They MUST be created, updated
   and deleted only by the ShopHub backend through the Kubernetes API.
-- *Derived resources*: everything the shop-operator creates to realise a Shop — database CRs
-  (CloudNativePG `Cluster`, Redis), workloads, services and secrets. They MUST be created,
-  updated and deleted only by the shop-operator, as owned children of their Shop (owner
-  references), so deleting the Shop removes them. The backend MUST NOT create them directly.
+- *Derived resources*: everything the shop-operator creates to realise a user resource —
+  database CRs (CloudNativePG `Cluster`, Redis), workloads, services and secrets (e.g. a
+  Wallet's generated key, a DiscordChannel's webhook). They MUST be created, updated and
+  deleted only by the shop-operator, as owned children of the user resource they realise (a
+  Shop, Wallet or DiscordChannel, via owner references), so deleting that resource removes
+  them. The backend MUST NOT create them directly.
 - Neither tier MAY be stored in `kube-state` or any other git repository.
 - The backend MUST run under a dedicated ServiceAccount whose RBAC grants only the verbs it
   needs on exactly the user-resource kinds, in the namespaces it manages. The shop-operator's
@@ -201,4 +209,4 @@ Rationale: Requirement 4.1; observability is a feature of every Shop, not an aft
 - **Review cadence**: revisit this constitution when the requirements document changes and
   before each project defense.
 
-**Version**: 2.1.0 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-22
+**Version**: 1.2.1 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-23

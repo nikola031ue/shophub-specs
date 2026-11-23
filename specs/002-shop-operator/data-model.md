@@ -56,7 +56,8 @@ any child error ─► ReconcileError (message = cause); retried with backoff
 ```text
 address given  ─► checksum ok ─► Ready (registered)      │ bad checksum ─► InvalidChecksum
 address absent ─► key Secret exists? yes ─► derive address ─► Ready (generated)
-                                     no  ─► generate key, create Secret ─► Ready (generated)
+                                     no, status.address empty ─► generate key, create Secret ─► Ready (generated)
+                                     no, status.address set   ─► KeyLost (no new key; address kept)
 delete requested ─► usedBy non-empty ─► InUse (waits) ─► empty ─► finalizer removed ─► GC Secret
 ```
 

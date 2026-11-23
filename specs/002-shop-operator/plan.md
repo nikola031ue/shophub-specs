@@ -70,7 +70,7 @@ All items resolved in [research.md](research.md); no NEEDS CLARIFICATION remain.
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.* Constitution v2.1.0.
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.* Constitution v1.2.1.
 
 | Principle | Check | Pre-research | Post-design |
 |-----------|-------|--------------|-------------|
@@ -78,11 +78,11 @@ All items resolved in [research.md](research.md); no NEEDS CLARIFICATION remain.
 | II. Repo-per-service, trunk-based | Operator in its own repo `shop-operator` (GitHub `shop-operator-spec`), PR-only `main` with branch protection applied **before the first merge**, squash merges, Conventional Commits, image `ghcr.io/nikola031ue/shop-operator:X.Y.Z` from a `vX.Y.Z` tag, no `latest` (placeholder Shop image `nginx:1.27.3`) | PASS | PASS |
 | III. Tested before merge | Unit plus envtest integration tests required in `shop-operator` CI; every bug fix gets a test; chart `install` and kube-state `e2e` stay required. Testcontainers N/A (no .NET). | PASS | PASS |
 | IV. Sepolia, tested locally | Wallet is offline only: key generation and address validation, no RPC. CI never contacts any chain, so Anvil isn't needed (spec Q1). Generated keys hold testnet funds only. | PASS | PASS |
-| V. Platform in git, shops via API | Operator, CRDs, RBAC, `cnpg`, `redis-operator` and the platform DiscordChannel are platform state in charts and kube-state. Shop/Wallet/DiscordChannel are user resources the operator never creates. Databases, workloads and Secrets are derived resources the operator creates as Shop-owned children (v2.1.0). The ClusterRole is justified below. Exceptions: the hand-applied test CRs and the Discord token bootstrap, both in Complexity Tracking. | PASS (with tracked items) | PASS (with tracked items) |
+| V. Platform in git, shops via API | Operator, CRDs, RBAC, `cnpg`, `redis-operator` and the platform DiscordChannel are platform state in charts and kube-state. Shop/Wallet/DiscordChannel are user resources the operator never creates. Databases, workloads and Secrets are derived resources, owned by the user resource they realise (v1.2.1): Shop owns its Deployment, Service and database; Wallet owns its key Secret; DiscordChannel owns its webhook Secret. The ClusterRole is justified below. Exceptions: the hand-applied test CRs and the Discord token bootstrap, both in Complexity Tracking. | PASS (with tracked items) | PASS (with tracked items) |
 | VI. Secrets in secret stores | Private keys, webhook URLs, the bot token and DB credentials live only in K8s Secrets and are referenced by name; chart values hold no secrets; tests assert status and logs carry no secret values (SC-007); CI uses `GITHUB_TOKEN` only | PASS | PASS |
-| VII. Per-Shop observability | Out of scope for this feature (spec Assumptions). This feature provides what VII needs later: per-Shop DiscordChannel, `shophub.io/owner` and `shophub.io/shop` labels on every child, and the platform-alerts channel. Dashboards and alert rules come in the observability feature. | PASS (deferred, not violated) | PASS |
+| VII. Per-Shop observability | VII requires per-Shop metrics, logs and traces to be provisioned when a Shop is reconciled. This feature builds that reconciler without them: a **feature-level deviation**, recorded in Complexity Tracking. This feature provides what VII needs later: per-Shop DiscordChannel, `shophub.io/owner` and `shophub.io/shop` labels on every child, and the platform-alerts channel. | DEVIATION (recorded) | DEVIATION (recorded) |
 
-Gate result: **PASS** — no unjustified violations.
+Gate result: **PASS** — every exception is recorded and justified in Complexity Tracking.
 
 ## Project Structure
 
@@ -158,4 +158,5 @@ Public) → `kube-state`.
 |-----------------------|------------|--------------------------------------|
 | ClusterRole for the operator (Principle V allows it only if justified) | Shops live in user namespaces chosen at runtime by the future backend; no fixed namespace list exists at install time | Namespace-scoped Roles can't be created for namespaces that don't exist yet. Mitigation: exact resources and verbs, no wildcards, Secret cache limited by label (R14) |
 | One-time `kubectl create secret` for the Discord bot token (Principle V "no raw kubectl create") | The token can't be in git (Principle VI), and no secret manager is in scope | Having `bring-up.sh` create it changes the 001 contract (never applies manifests). Sealed Secrets/SOPS add a platform component. The operator works without it (`DiscordCredentialsMissing`) (R15) |
-| Maintainer hand-applies test Shop/Wallet/DiscordChannel CRs in a throwaway namespace (quickstart 3–5) | The ShopHub backend, the only allowed creator of user resources, doesn't exist yet | Waiting for the backend would leave US1 unverifiable on a real cluster. Limited to namespace `qs`, deleted after validation; automated tests use envtest instead |
+| Maintainer makes hand changes (apply/delete of test Shop/Wallet/DiscordChannel CRs, deleting a Shop's Deployment to test self-healing, deleting the namespace afterwards) in throwaway namespace `qs` (quickstart 3–5, T024) | The ShopHub backend, the only allowed creator of user resources, doesn't exist yet | Waiting for the backend would leave US1 unverifiable on a real cluster. Every hand change is limited to namespace `qs`, which is deleted after validation; automated tests use envtest instead |
+| Per-Shop metrics, logs, traces, dashboards and alert rules are not provisioned by the Shop reconciler yet (Principle VII) | The Shop app is a placeholder with no real traffic or instrumentation, and prometheus-stack isn't installed until the observability feature | Adding ServiceMonitors and dashboards now would target a placeholder and an absent Prometheus. The observability feature MUST extend the Shop reconciler; this feature already provides the owner/shop labels and per-Shop DiscordChannel it needs |

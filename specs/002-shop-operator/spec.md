@@ -27,8 +27,8 @@ placeholder image until feature 3. Keep it minimal, solo developer, max ~25 task
   Shop has a required reference to it (FR-001, FR-016).
 - Q: How are the database operators installed? → A: Own `kube-state` releases from upstream
   charts, before `shop-operator` (FR-024).
-- Constitution amended to v2.1.0 (MINOR): operator-created databases are derived resources
-  owned by their Shop (Principle V).
+- Constitution amended to v1.2.0 (MINOR), then v1.2.1 (PATCH): operator-created resources are
+  derived resources owned by the user resource they realise (Principle V).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -145,6 +145,9 @@ disappears.
   funds on that account become unreachable. Acceptable because only testnet tokens are used
   (Principle IV); documented in the operator README.
 - **Invalid address**: a Wallet with a malformed address is rejected at submission.
+- **Generated key Secret deleted by hand**: the private key can't be restored and a new key
+  would silently change the payment address, so the Wallet reports an error (key lost), keeps
+  showing its old address and does not generate a new key. This is the one exception to FR-018.
 - **Partial failure**: if the database cannot be created (e.g. its operator is missing), the
   Shop reports an error naming the database and keeps retrying; nothing is left half-deleted when
   the Shop is later removed.
@@ -154,7 +157,8 @@ disappears.
   delete existing shops, databases, wallets or Discord channels.
 - **Duplicate names**: two Shops (or DiscordChannels) with the same name in the same namespace
   are impossible; the same name in different namespaces is allowed and yields separate
-  resources (Discord channel names include enough context to stay unique).
+  resources. Discord channel names may repeat (Discord allows it); each channel is tied to its
+  resource by the resource UID in the channel topic, which keeps creation idempotent.
 - **Discord rate limits**: rate-limited requests are retried later and reported in status, not
   treated as permanent failures.
 - **Secrets missing**: if the Discord access secret or any secret the operator needs is missing,
@@ -186,8 +190,9 @@ disappears.
 - **FR-007**: Until feature 3 delivers the Shop application, the operator MUST run a placeholder
   application whose image and version are set in the operator's chart values; the version MUST be
   a pinned SemVer tag, never `latest`.
-- **FR-008**: The shop MUST be reachable at an address reported in the Shop status, so ShopHub
-  can later open it in a new tab (Requirement 1.2).
+- **FR-008**: The shop MUST be reachable inside the cluster at an address reported in the Shop
+  status, for the ShopHub backend. Browser access ("open in a new tab", Requirement 1.2) comes
+  with the later feature that adds an ingress controller.
 
 **Wallet**
 
@@ -267,8 +272,8 @@ disappears.
 
 ### Measurable Outcomes
 
-- **SC-001**: On the local cluster, a newly submitted `standard` Shop (with a ready Wallet)
-  reports ready within 5 minutes, including its database.
+- **SC-001**: On the local cluster, a newly submitted `standard` Shop (with a ready Wallet and a
+  ready DiscordChannel) reports ready within 5 minutes, including its database.
 - **SC-002**: An availability change is reflected in the number of running copies within
   2 minutes.
 - **SC-003**: Within 2 minutes of deleting a Shop or DiscordChannel, none of the resources (or
@@ -298,9 +303,12 @@ disappears.
   a cluster secret.
 - Shop exposure on the local cluster uses whatever the local cluster offers (detailed in the
   plan); a public domain/TLS is out of scope.
-- **Constitution v2.1.0** (MINOR amendment, 2026-11-22): Principle V now separates user
-  resources (Shop, Wallet, DiscordChannel — backend only) from derived resources (databases,
-  workloads, secrets — shop-operator only, owned by their Shop). This feature follows it.
+- **Constitution v1.2.1** (v1.2.0 MINOR 2026-11-22, v1.2.1 PATCH 2026-11-23): Principle V
+  separates user resources (Shop, Wallet, DiscordChannel — backend only) from derived resources
+  (databases, workloads, secrets — shop-operator only, owned by the user resource they realise).
+  This feature follows it.
+- Per-Shop observability (Principle VII) is deferred to the observability feature; the deviation
+  is recorded in plan.md Complexity Tracking.
 - The `kube-state` schema check from feature 001 only allows charts from the project registry;
   it must be extended to allow the pinned upstream database-operator charts (plan decides how).
 - Generated Wallet keys are acceptable only because payments use testnet tokens (Principle IV).

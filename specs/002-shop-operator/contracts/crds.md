@@ -52,6 +52,7 @@ spec:
 | Shop | `DatabaseProvisioning` | False | Database CR exists, not ready yet |
 | Shop | `Progressing` | False | Pods not all available |
 | Wallet | `InvalidChecksum` | False | Mixed-case address fails EIP-55 |
+| Wallet | `KeyLost` | False | Generated Wallet's key Secret was deleted; old address kept, no new key generated |
 | Wallet, DiscordChannel | `InUse` | False | Deletion waits for referencing Shops (`status.usedBy`) |
 | DiscordChannel | `DiscordCredentialsMissing` | False | Token Secret or guild ID missing (names the Secret) |
 | DiscordChannel | `DiscordUnavailable` | False | 429 / 5xx / network; retried |

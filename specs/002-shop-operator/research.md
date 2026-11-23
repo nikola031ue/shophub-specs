@@ -110,7 +110,10 @@ live on 2026-11-23 with `helm show chart` against the public registries.
 - **Decision**: Use `go-ethereum` `crypto.GenerateKey` and `crypto.PubkeyToAddress` for new keys,
   and `common.IsHexAddress` plus an EIP-55 comparison for checksums. Generated keys go into Secret
   `<name>-wallet-key` (key `privateKey`, hex), owned by the Wallet. If that Secret exists, the
-  address is always derived from it and never regenerated. No RPC client is created.
+  address is always derived from it and never regenerated. If the Secret is gone but
+  `status.address` is already set, the key is lost: the Wallet reports `KeyLost`, keeps the old
+  address and generates nothing, because a silent new key would change the payment address.
+  No RPC client is created.
 - **Rationale**: Standard, audited implementation; offline only, so Principle IV is satisfied
   without Anvil (spec clarification Q1).
 - **Alternatives**: `decred/secp256k1` + `x/crypto/sha3` (fewer deps but hand-rolled address
@@ -163,11 +166,15 @@ live on 2026-11-23 with `helm show chart` against the public registries.
   time. Rules list exact resources and verbs:
   - shophub.io kinds (and their status and finalizers)
   - deployments, services, secrets, events
+  - `apps/statefulsets` — `get`, `list`, `watch` only (Redis readiness, R12)
   - `clusters.postgresql.cnpg.io`, `redis.redis.opstreelabs.in`
   - leases (leader election, own namespace)
 
-  No wildcards. The secrets cache is limited to objects labelled
-  `app.kubernetes.io/managed-by=shop-operator`; the Discord token Secret is read directly.
+  No wildcards. Rules come from kubebuilder `+kubebuilder:rbac` markers on the reconcilers,
+  because envtest doesn't enforce RBAC and a missing rule only shows on a real cluster. The
+  secrets cache is limited to objects labelled `app.kubernetes.io/managed-by=shop-operator`. The
+  hand-created, unlabelled Discord token Secret is therefore read with the uncached API reader
+  (`mgr.GetAPIReader()`), never through the cached client.
 - **Rationale**: Principle V allows a ClusterRole when justified; it is justified here and
   recorded in plan.md Complexity Tracking.
 
