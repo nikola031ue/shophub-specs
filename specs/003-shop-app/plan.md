@@ -56,7 +56,7 @@ are upgraded by reconciliation alone.
 - Frontend: Angular router and HttpClient, no UI library.
 - No ORM (research R7).
 
-**Storage**: per Shop, PostgreSQL 17 (CNPG `Cluster`, `standard`) or Redis 7.2 (OT `Redis`,
+**Storage**: per Shop, PostgreSQL (CNPG default major, matched in tests; `Cluster`, `standard`) or Redis 7.2 (OT `Redis`,
 `light`, now with password and 1 Gi PVC). Layouts are in [data-model.md](data-model.md).
 
 **Testing**:

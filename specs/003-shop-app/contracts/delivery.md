@@ -36,7 +36,7 @@ shop/
 | Job | Trigger | Steps | Required on `main` |
 |-----|---------|-------|--------------------|
 | `lint` | PR, push to main | `dotnet format --verify-no-changes`; `npm ci && npx ng lint` | ✓ |
-| `test` | PR, push to main | `dotnet test` (unit + Testcontainers PostgreSQL 17 and Redis 7.2, images pinned by tag); `npx ng test --watch=false` | ✓ |
+| `test` | PR, push to main | `dotnet test` (unit + Testcontainers PostgreSQL (same major as the CNPG default) and Redis 7.2, images pinned by tag); `npx ng test --watch=false` | ✓ |
 | `release` | tag `v*.*.*` | refuse non-SemVer tags; `docker build`; push `ghcr.io/nikola031ue/shop:X.Y.Z` with `GITHUB_TOKEN`; never `latest` | – |
 
 - Actions pinned by full commit SHA, as in shop-operator.

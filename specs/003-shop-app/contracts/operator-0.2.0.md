@@ -45,6 +45,8 @@ spec:
   storage:
     keepAfterDelete: false
     volumeClaimTemplate:
+      metadata:
+        labels: <the Shop's child labels>   # managed-by + shophub.io/owner + shophub.io/shop (Principle V)
       spec:
         accessModes: [ReadWriteOnce]
         resources: {requests: {storage: 1Gi}}

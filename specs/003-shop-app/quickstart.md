@@ -30,7 +30,8 @@ Expected: all pass. The new envtest specs cover:
 ## Scenario 2 — Automatic upgrade of 0.1.0 Shops (Phase 1)
 
 1. Before the operator change, on the cluster still at operator 0.1.0: create a standard Shop
-   `std` and a light Shop `lite` in `qs`, and wait for both to be Ready.
+   `std` and a light Shop `lite` in `qs`, each with a Wallet and a Ready DiscordChannel as in 002
+   Scenario 3, and wait for both to be Ready.
 2. Merge the kube-state PR (`shop-operator` 0.3.0) and run `./bring-up.sh`. Expected: only
    `shop-operator` upgraded.
 3. Expected within 5 min, with no hand change:
@@ -89,6 +90,9 @@ On `std` and `lite`:
 3. Fill a cart, have the admin change that item's price in another tab, then place the order.
    Expected: a "price changed" problem, no order created. After confirming the corrected cart,
    the order succeeds.
+4. **SC-005**: seed 1,000 items through the admin API with a small script (signed-in cookie and
+   XSRF header), then search a substring that matches about 10 of them. Expected: results within
+   1 s in the browser's network tab.
 
 ## Scenario 7 — Orders list (US3)
 

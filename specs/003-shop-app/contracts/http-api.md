@@ -32,6 +32,11 @@ need the `X-XSRF-TOKEN` header that matches the `XSRF-TOKEN` cookie (400 otherwi
 | DELETE | `/api/admin/items/{id}` | – | 204 · 404 |
 | GET | `/api/admin/orders?page=1` | – | 200 `{orders:[{reference, createdAt, status, totalCents, walletAddress, lines:[{itemId,name,unitPriceCents,quantity}]}], page, pageSize:20, total}`, newest first |
 
+## Store unavailable
+
+Any endpoint above (public or admin) returns **503** with a problem "temporarily unavailable" when
+the database doesn't answer. No partial write is stored (spec edge case).
+
 ## Lockout (FR-006)
 
 - 5 failed logins within 15 min → every login is refused with 429 for 15 min, even with the
