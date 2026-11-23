@@ -98,8 +98,8 @@ already contain the DiscordChannel controller from US3.
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Finish `shop-operator/Dockerfile` (distroless, non-root, pinned base digests) and `shop-operator/README.md` (CRDs, flags, wallet-deletion warning from spec Edge Cases, `KeyLost` recovery: the ShopHub backend creates a new Wallet (new key and address), switches each referencing Shop's `walletRef` to it (the shops roll to the new address), then deletes the old Wallet, which the in-use finalizer only allows once no Shop references it (FR-010); recreating a Wallet under the same name works only after that deletion completes; funds on the old address stay unreachable, Discord bot permissions and the one-time token Secret from research R15); apply branch protection to `nikola031ue/shop-operator-spec` `main` (contexts `lint`, `test`, `enforce_admins`, linear history, 0 approvals) **before** the first merge, then open, self-review and squash-merge the PR
-- [ ] T018 [US2] Tag `v0.1.0` on `shop-operator` `main`, confirm the `release` job pushed `ghcr.io/nikola031ue/shop-operator:0.1.0`, set the package Public and verify an anonymous `docker pull`
+- [X] T017 [US2] Finish `shop-operator/Dockerfile` (distroless, non-root, pinned base digests) and `shop-operator/README.md` (CRDs, flags, wallet-deletion warning from spec Edge Cases, `KeyLost` recovery: the ShopHub backend creates a new Wallet (new key and address), switches each referencing Shop's `walletRef` to it (the shops roll to the new address), then deletes the old Wallet, which the in-use finalizer only allows once no Shop references it (FR-010); recreating a Wallet under the same name works only after that deletion completes; funds on the old address stay unreachable, Discord bot permissions and the one-time token Secret from research R15); apply branch protection to `nikola031ue/shop-operator-spec` `main` (contexts `lint`, `test`, `enforce_admins`, linear history, 0 approvals) **before** the first merge, then open, self-review and squash-merge the PR
+- [X] T018 [US2] Tag `v0.1.0` on `shop-operator` `main`, confirm the `release` job pushed `ghcr.io/nikola031ue/shop-operator:0.1.0`, set the package Public and verify an anonymous `docker pull`
 - [ ] T019 [US2] Add `shop-operator/hack/sync-chart.sh` that renders `config/crd` and `config/rbac` into `helm-charts/charts/shop-operator/templates/crds.yaml` (with `helm.sh/resource-policy: keep`) and `rbac.yaml`; then write `helm-charts/charts/shop-operator/templates/{deployment,serviceaccount}.yaml`, `values.yaml` and bump `Chart.yaml` to version 0.2.0 / appVersion 0.1.0 exactly per contracts/charts-and-kube-state.md (research R8, R14)
 - [ ] T020 [P] [US2] Replace the `helm-charts/charts/shophub-discord` placeholder with `templates/discordchannel.yaml` (one DiscordChannel, `channelName` from values, default `platform-alerts`) and bump to 0.2.0 (spec FR-025)
 - [ ] T021 [US2] Change the `install` job in `helm-charts/.github/workflows/charts.yaml` to install `shop-operator` first and then the other charts; open the helm-charts PR, get all checks green (the chart must become Ready without CNPG/Redis or a Discord Secret), squash-merge, and confirm `publish` and `verify-public` push both 0.2.0 charts
@@ -306,3 +306,33 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
     token/webhook URL in status or logs.
 - **Checkpoint**: `make test` → 52/52 Ginkgo specs (two consecutive green runs), controller
   coverage 83.5%; `make lint` → 0 issues.
+
+### 2026-11-23 — Phase 5 part 1 / US2 (T017–T018)
+
+- **T017**:
+  - `Dockerfile`: builder `golang:1.27.4-bookworm` and runtime
+    `gcr.io/distroless/static:nonroot`, both pinned by digest; `-trimpath -ldflags="-s -w"`,
+    user 65532. Image 80 MB (scaffold build: 120 MB).
+  - `README.md` rewritten: resources, wallet key handling with the wallet-deletion warning and
+    the `KeyLost` recovery (new Wallet → move Shops → delete old one; same-name reuse only after
+    deletion completes), Discord bot setup and the one-time token Secret, flags, development,
+    releases.
+  - Branch protection on `nikola031ue/shop-operator-spec` `main` applied **before** the first
+    merge, after approval: required checks `lint`, `test` (strict), `enforce_admins`, linear
+    history, no force-push or deletion, 0 approvals. Repo set to squash-only with auto-delete
+    of merged branches.
+  - PR #1: CI green (`lint` 3m56s, `test` 3m52s), mergeable `CLEAN`, diff self-reviewed and
+    secret-scanned, squash-merged as `687f75c`.
+- **T018**:
+  - Tag `v0.1.0` on `687f75c`; the `release` run passed `lint`, `test` and `release`. Published
+    `ghcr.io/nikola031ue/shop-operator:0.1.0`, digest
+    `sha256:a229778fd983d834fe7cb9a844228e90c4eab4b3326a5f36324c748de70001d9`, linux/amd64,
+    OCI labels `version=0.1.0` and `source=…/shop-operator-spec`.
+  - **The package was already Public**, so no visibility change was needed or made. Probably it
+    inherited the public repository's visibility through the source label on first publish.
+    The `gh` token lacks `read:packages`, so the setting couldn't be read via the API.
+    Evidence: GHCR issues an anonymous pull token (HTTP 200; it is 403 for private or missing
+    packages, see 001 research R9).
+  - A fresh pull with an empty `DOCKER_CONFIG` (no credentials) succeeded. The pulled image runs
+    as 65532 and refuses `--shop-image-tag=latest`.
+- Remaining in Phase 5: T019–T023 (helm-charts and kube-state).
