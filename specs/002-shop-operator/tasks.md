@@ -83,8 +83,8 @@ already contain the DiscordChannel controller from US3.
 
 ### Tests and implementation for User Story 3
 
-- [ ] T015 [P] [US3] Implement the Discord client in `shop-operator/internal/discord/client.go` (interface + REST v10 implementation for the four calls in research R9, `Authorization: Bot`, `429 retry_after` → typed retryable error, 401/403 → forbidden, 404 on delete = success) with tests against `httptest` in `shop-operator/internal/discord/client_test.go`; the token must never appear in errors or logs
-- [ ] T016 [US3] Implement the DiscordChannel reconciler in `shop-operator/internal/controller/discordchannel_controller.go` (token Secret from `--discord-token-secret`, read with the uncached `mgr.GetAPIReader()` because it is unlabelled and outside the filtered Secret cache from T009 (research R14), adopt by topic `shophub-uid:<uid>`, `<name>-discord-webhook` Secret with data-model.md `DiscordChannel.status.webhookSecretName`, reasons `DiscordCredentialsMissing`/`DiscordUnavailable`/`DiscordForbidden`/`InUse`, finalizer `shophub.io/discord-cleanup`) with envtest cases in `shop-operator/internal/controller/discordchannel_controller_test.go` using a fake client, covering US3 acceptance scenarios 1–4, "no webhook URL in status/events/logs", "an unlabelled token Secret is found", "a hand-deleted `<name>-discord-webhook` Secret is restored by creating a new webhook on the same channel, without creating a second channel" (G4, FR-018), and every not-ready reason asserted with `Eventually(…, 60s)` (SC-005)
+- [X] T015 [P] [US3] Implement the Discord client in `shop-operator/internal/discord/client.go` (interface + REST v10 implementation for the four calls in research R9, `Authorization: Bot`, `429 retry_after` → typed retryable error, 401/403 → forbidden, 404 on delete = success) with tests against `httptest` in `shop-operator/internal/discord/client_test.go`; the token must never appear in errors or logs
+- [X] T016 [US3] Implement the DiscordChannel reconciler in `shop-operator/internal/controller/discordchannel_controller.go` (token Secret from `--discord-token-secret`, read with the uncached `mgr.GetAPIReader()` because it is unlabelled and outside the filtered Secret cache from T009 (research R14), adopt by topic `shophub-uid:<uid>`, `<name>-discord-webhook` Secret with data-model.md `DiscordChannel.status.webhookSecretName`, reasons `DiscordCredentialsMissing`/`DiscordUnavailable`/`DiscordForbidden`/`InUse`, finalizer `shophub.io/discord-cleanup`) with envtest cases in `shop-operator/internal/controller/discordchannel_controller_test.go` using a fake client, covering US3 acceptance scenarios 1–4, "no webhook URL in status/events/logs", "an unlabelled token Secret is found", "a hand-deleted `<name>-discord-webhook` Secret is restored by creating a new webhook on the same channel, without creating a second channel" (G4, FR-018), and every not-ready reason asserted with `Eventually(…, 60s)` (SC-005)
 
 **Checkpoint**: all three controllers green in CI; operator ready for its first release
 
@@ -275,3 +275,34 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
 - **Checkpoint**: `make test` → 42/42 Ginkgo specs (two consecutive green runs), controller
   coverage ≈ 83.5%; `make lint` → 0 issues after fixing 12 findings (incl. the deprecated
   `Result.Requeue` → `RequeueAfter`).
+
+### 2026-11-23 — Phase 4 / US3 (T015–T016)
+
+- **T015** `internal/discord`: `Client` interface plus `HTTPClient` over REST v10:
+  - list/create channel, create webhook, delete channel;
+  - `Authorization: Bot`, `DiscordBot (…)` User-Agent;
+  - 429 → `RetryableError` with `retry_after` (body, else `Retry-After` header); 5xx and
+    network errors are retryable too; 401/403 → `ForbiddenError`; 404 on delete = success;
+  - errors carry only the operation, status and Discord's code/message, never the token or
+    webhook URL.
+  - 9 `httptest` tests, 92.1% coverage.
+- **T016** DiscordChannel reconciler:
+  - finalizer `shophub.io/discord-cleanup`;
+  - adopts by topic `shophub-uid:<uid>` when `status.channelID` is empty, otherwise creates;
+  - webhook Secret `<name>-discord-webhook` (key `url`, owned, labelled); like the wallet key,
+    a cache miss is confirmed with the uncached reader before creating a new webhook;
+  - reasons `DiscordCredentialsMissing` (names the token Secret), `DiscordUnavailable`
+    (requeue after `retry_after`, at least 1 s), `DiscordForbidden` (5 min), `InUse`.
+  - The unlabelled token Secret is read with `mgr.GetAPIReader()`. It isn't watched, so missing
+    credentials are re-checked every `CredentialsRetry` (default 1 min).
+  - The real HTTP client is the default in `SetupWithManager`, so `cmd/main.go` needs no change.
+- **Tests**:
+  - Each DiscordChannel spec runs its own manager, limited to its namespace, with an in-memory
+    fake Discord. A suite-wide DiscordChannel reconciler would overwrite the statuses the US1
+    tests set by hand. Repeated controller names need `SkipNameValidation` in those test
+    managers.
+  - 10 specs cover US3 scenarios 1–4, adoption after status loss, G4 (webhook Secret restored
+    without a second channel), in-use protection, both credential failures, and no
+    token/webhook URL in status or logs.
+- **Checkpoint**: `make test` → 52/52 Ginkgo specs (two consecutive green runs), controller
+  coverage 83.5%; `make lint` → 0 issues.
