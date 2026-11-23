@@ -65,11 +65,11 @@ already contain the DiscordChannel controller from US3.
 
 ### Tests and implementation for User Story 1
 
-- [ ] T010 [P] [US1] Implement offline wallet logic in `shop-operator/internal/wallet/keygen.go` and `checksum.go` (generate key, derive checksummed address, EIP-55 validation for data-model.md `Wallet.spec.address`; research R10) with table tests in `shop-operator/internal/wallet/wallet_test.go` (known EIP-55 vectors, lowercase accepted, bad checksum rejected, key round-trip)
-- [ ] T011 [P] [US1] Implement child builders in `shop-operator/internal/resources/` (`deployment.go`, `service.go`, `cnpg.go`, `redis.go` as unstructured) per research R11 and data-model.md "Owns" (names `<shop>`, `<shop>-db`, `<shop>-redis`; replicas from `Shop.spec.availability`; env `SHOP_NAME`, `WALLET_ADDRESS`, `DATABASE_URL` via secretKeyRef / `REDIS_URL`; owner labels) with unit tests in `shop-operator/internal/resources/resources_test.go`, including "image tag is never `latest`"
-- [ ] T012 [US1] Implement the Wallet reconciler in `shop-operator/internal/controller/wallet_controller.go` (registered vs generated modes, never regenerate when `<name>-wallet-key` exists, `InvalidChecksum`, `KeyLost` when the Secret of an already-generated Wallet is gone, `usedBy` via the Shop index, finalizer `shophub.io/in-use-protection` with reason `InUse`) and envtest cases in `shop-operator/internal/controller/wallet_controller_test.go`, including "status, events and logs contain no private key" (SC-007) and "hand-deleting the `<name>-wallet-key` Secret of a generated Wallet whose `status.address` is set yields `Ready=False, reason=KeyLost`, keeps `status.address`, and creates no new key" (G4, FR-018 exception in spec Edge Cases); every not-ready reason is asserted with `Eventually(…, 60s)` (SC-005)
-- [ ] T013 [US1] Write envtest cases for the Shop reconciler in `shop-operator/internal/controller/shop_controller_test.go` covering US1 acceptance scenarios 1–8 and edge cases: standard→PostgreSQL `Cluster`, light→`Redis`, availability change, wallet switch changes the pod template, deletion leaves owner references for GC, `WalletNotReady`/`DiscordChannelNotReady`, `DatabaseOperatorMissing` (manager started without the Redis kind), manual deletion of the Deployment is restored; every not-ready reason is asserted with `Eventually(…, 60s)` (SC-005)
-- [ ] T014 [US1] Implement the Shop reconciler in `shop-operator/internal/controller/shop_controller.go` (resolve refs, create/update children with controller owner references, readiness per research R12, status `url`/`walletAddress`/`webhookSecretName`/replicas, watches on Wallet and DiscordChannel through the indexes) until T013 passes; declare `+kubebuilder:rbac` markers for every kind it touches, including `apps/statefulsets` `get;list;watch` for Redis readiness (research R12, R14 — envtest doesn't enforce RBAC)
+- [X] T010 [P] [US1] Implement offline wallet logic in `shop-operator/internal/wallet/keygen.go` and `checksum.go` (generate key, derive checksummed address, EIP-55 validation for data-model.md `Wallet.spec.address`; research R10) with table tests in `shop-operator/internal/wallet/wallet_test.go` (known EIP-55 vectors, lowercase accepted, bad checksum rejected, key round-trip)
+- [X] T011 [P] [US1] Implement child builders in `shop-operator/internal/resources/` (`deployment.go`, `service.go`, `cnpg.go`, `redis.go` as unstructured) per research R11 and data-model.md "Owns" (names `<shop>`, `<shop>-db`, `<shop>-redis`; replicas from `Shop.spec.availability`; env `SHOP_NAME`, `WALLET_ADDRESS`, `DATABASE_URL` via secretKeyRef / `REDIS_URL`; owner labels) with unit tests in `shop-operator/internal/resources/resources_test.go`, including "image tag is never `latest`"
+- [X] T012 [US1] Implement the Wallet reconciler in `shop-operator/internal/controller/wallet_controller.go` (registered vs generated modes, never regenerate when `<name>-wallet-key` exists, `InvalidChecksum`, `KeyLost` when the Secret of an already-generated Wallet is gone, `usedBy` via the Shop index, finalizer `shophub.io/in-use-protection` with reason `InUse`) and envtest cases in `shop-operator/internal/controller/wallet_controller_test.go`, including "status, events and logs contain no private key" (SC-007) and "hand-deleting the `<name>-wallet-key` Secret of a generated Wallet whose `status.address` is set yields `Ready=False, reason=KeyLost`, keeps `status.address`, and creates no new key" (G4, FR-018 exception in spec Edge Cases); every not-ready reason is asserted with `Eventually(…, 60s)` (SC-005)
+- [X] T013 [US1] Write envtest cases for the Shop reconciler in `shop-operator/internal/controller/shop_controller_test.go` covering US1 acceptance scenarios 1–8 and edge cases: standard→PostgreSQL `Cluster`, light→`Redis`, availability change, wallet switch changes the pod template, deletion leaves owner references for GC, `WalletNotReady`/`DiscordChannelNotReady`, `DatabaseOperatorMissing` (manager started without the Redis kind), manual deletion of the Deployment is restored; every not-ready reason is asserted with `Eventually(…, 60s)` (SC-005)
+- [X] T014 [US1] Implement the Shop reconciler in `shop-operator/internal/controller/shop_controller.go` (resolve refs, create/update children with controller owner references, readiness per research R12, status `url`/`walletAddress`/`webhookSecretName`/replicas, watches on Wallet and DiscordChannel through the indexes) until T013 passes; declare `+kubebuilder:rbac` markers for every kind it touches, including `apps/statefulsets` `get;list;watch` for Redis readiness (research R12, R14 — envtest doesn't enforce RBAC)
 
 **Checkpoint**: `make test` green; US1 behaviour proven in envtest
 
@@ -230,3 +230,48 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
 - **Checkpoint**: `make test` → 27/27 Ginkgo specs pass, `internal/controller` coverage 71.2%;
   `make lint` → 0 issues; `go build ./cmd` OK. Nothing committed yet (shop-operator branch
   `002-shop-operator` is local).
+
+### 2026-11-23 — Phase 3 / US1 (T010–T014)
+
+- **T010** `internal/wallet`: `GenerateKey`, `AddressFromPrivateKeyHex`, `NormalizeAddress`
+  (EIP-55; all-lower/all-upper accepted, mixed case must match). Dependency
+  `github.com/ethereum/go-ethereum` **v1.17.10** (2026-10-23). `go get` also bumped transitive
+  `google.golang.org/grpc` 1.82.1 → 1.83.1 and `google.golang.org/protobuf` to the 1.36.12
+  release. 5 tests (EIP-55 reference vectors, bad checksum, invalid formats, key round trip, no
+  key material in errors), 94.4% coverage.
+- **T011** `internal/resources`: all builders in one `resources.go` instead of the four files
+  the task names (small package). Redis server image pinned to
+  `quay.io/opstree/redis:v7.2.16`, because the upstream example uses `latest`. CNPG's PostgreSQL
+  image is left to the pinned operator's default. Owner labels stay out of the immutable
+  Deployment selector. 8 tests, 100% coverage.
+- **T012** Wallet reconciler:
+  - registered/generated modes, `InvalidChecksum`, `KeyLost`, `usedBy`, finalizer
+    `shophub.io/in-use-protection` (`InUse`).
+  - Race handling: before reporting `KeyLost`, a cache miss on the key Secret is confirmed with
+    the **uncached API reader** (the cache can lag right after creation). `AlreadyExists` on
+    create requeues instead of overwriting.
+  - The Wallet watches Shops; update events map both the old and new `walletRef`.
+  - `CacheOptions()` is now shared by `cmd/main.go` and the test manager.
+  - 8 envtest specs, including no private key in status or logs (log capture) and G4.
+- **T013** Shop envtest specs written first and confirmed failing (7/7 red) before T014.
+  envtest has no kube-controller-manager, CNPG or Redis operator, so tests set Deployment, CNPG
+  `Cluster` and Redis StatefulSet status by hand. Garbage collection doesn't run either, so
+  deletion (scenario 5) is verified via controller owner references with `blockOwnerDeletion`.
+  `DatabaseOperatorMissing` is tested against a second, bare API server with the reconciler
+  called directly.
+- **T014** Shop reconciler:
+  - no app until Wallet and DiscordChannel are Ready;
+  - children are server-side applied (`Client.Apply` + `ApplyConfigurationFromUnstructured`;
+    the Patch-based `client.Apply` is deprecated in controller-runtime v0.25) with field owner
+    `shop-operator` and controller owner references;
+  - readiness per research R12, 30 s requeue while not Ready.
+  - RBAC markers include `apps/statefulsets get;list;watch`.
+- **RBAC tightened**: the scaffold granted `create`/`delete` on Shops, Wallets and
+  DiscordChannels. The operator never creates user resources (Principle V), so those verbs and
+  `shops/finalizers` are gone. `config/rbac/role.yaml` regenerated.
+- **Test fixes**: once the Shop reconciler writes status, plain `Update` calls in tests can hit
+  conflicts. Validation tests now use JSON merge patches; the spec updates in the Shop/Wallet
+  tests retry.
+- **Checkpoint**: `make test` → 42/42 Ginkgo specs (two consecutive green runs), controller
+  coverage ≈ 83.5%; `make lint` → 0 issues after fixing 12 findings (incl. the deprecated
+  `Result.Requeue` → `RequeueAfter`).
