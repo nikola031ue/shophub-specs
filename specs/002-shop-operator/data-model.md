@@ -99,4 +99,4 @@ Wallet 1 ◄── * Shop * ──► 1 DiscordChannel
 | `--shop-image` | `shopImage.repository` | `nginx` |
 | `--shop-image-tag` | `shopImage.tag` | `1.27.3` (SemVer, never `latest`) |
 | `--discord-guild-id` | `discord.guildID` | `""` (DiscordChannels report `DiscordCredentialsMissing`) |
-| `--discord-token-secret` | `discord.tokenSecret` | `shop-operator-discord` (in release namespace, key `token`) |
+| `--discord-token-secret` | `discord.tokenSecretName` | `shop-operator-discord` (in release namespace, key `token`) |

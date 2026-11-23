@@ -100,10 +100,10 @@ already contain the DiscordChannel controller from US3.
 
 - [X] T017 [US2] Finish `shop-operator/Dockerfile` (distroless, non-root, pinned base digests) and `shop-operator/README.md` (CRDs, flags, wallet-deletion warning from spec Edge Cases, `KeyLost` recovery: the ShopHub backend creates a new Wallet (new key and address), switches each referencing Shop's `walletRef` to it (the shops roll to the new address), then deletes the old Wallet, which the in-use finalizer only allows once no Shop references it (FR-010); recreating a Wallet under the same name works only after that deletion completes; funds on the old address stay unreachable, Discord bot permissions and the one-time token Secret from research R15); apply branch protection to `nikola031ue/shop-operator-spec` `main` (contexts `lint`, `test`, `enforce_admins`, linear history, 0 approvals) **before** the first merge, then open, self-review and squash-merge the PR
 - [X] T018 [US2] Tag `v0.1.0` on `shop-operator` `main`, confirm the `release` job pushed `ghcr.io/nikola031ue/shop-operator:0.1.0`, set the package Public and verify an anonymous `docker pull`
-- [ ] T019 [US2] Add `shop-operator/hack/sync-chart.sh` that renders `config/crd` and `config/rbac` into `helm-charts/charts/shop-operator/templates/crds.yaml` (with `helm.sh/resource-policy: keep`) and `rbac.yaml`; then write `helm-charts/charts/shop-operator/templates/{deployment,serviceaccount}.yaml`, `values.yaml` and bump `Chart.yaml` to version 0.2.0 / appVersion 0.1.0 exactly per contracts/charts-and-kube-state.md (research R8, R14)
-- [ ] T020 [P] [US2] Replace the `helm-charts/charts/shophub-discord` placeholder with `templates/discordchannel.yaml` (one DiscordChannel, `channelName` from values, default `platform-alerts`) and bump to 0.2.0 (spec FR-025)
-- [ ] T021 [US2] Change the `install` job in `helm-charts/.github/workflows/charts.yaml` to install `shop-operator` first and then the other charts; open the helm-charts PR, get all checks green (the chart must become Ready without CNPG/Redis or a Discord Secret), squash-merge, and confirm `publish` and `verify-public` push both 0.2.0 charts
-- [ ] T022 [P] [US2] Add `kube-state/.github/upstream-charts.yaml` and the allowlist rule to `kube-state/.github/scripts/check-schema.sh` (every row of the contracts/charts-and-kube-state.md rule table), with bats cases in `kube-state/.github/tests/check-schema.bats` for: allowlisted url+version passes, allowlisted url with another tag fails, unknown url fails, missing/invalid allowlist fails, non-SemVer allowlist version fails (research R7)
+- [X] T019 [US2] Add `shop-operator/hack/sync-chart.sh` that renders `config/crd` and `config/rbac` into `helm-charts/charts/shop-operator/templates/crds.yaml` (with `helm.sh/resource-policy: keep`) and `rbac.yaml`; then write `helm-charts/charts/shop-operator/templates/{deployment,serviceaccount}.yaml`, `values.yaml` and bump `Chart.yaml` to version 0.2.0 / appVersion 0.1.0 exactly per contracts/charts-and-kube-state.md (research R8, R14)
+- [X] T020 [P] [US2] Replace the `helm-charts/charts/shophub-discord` placeholder with `templates/discordchannel.yaml` (one DiscordChannel, `channelName` from values, default `platform-alerts`) and bump to 0.2.0 (spec FR-025)
+- [X] T021 [US2] Change the `install` job in `helm-charts/.github/workflows/charts.yaml` to install `shop-operator` first and then the other charts; open the helm-charts PR, get all checks green (the chart must become Ready without CNPG/Redis or a Discord Secret), squash-merge, and confirm `publish` and `verify-public` push both 0.2.0 charts
+- [X] T022 [P] [US2] Add `kube-state/.github/upstream-charts.yaml` and the allowlist rule to `kube-state/.github/scripts/check-schema.sh` (every row of the contracts/charts-and-kube-state.md rule table), with bats cases in `kube-state/.github/tests/check-schema.bats` for: allowlisted url+version passes, allowlisted url with another tag fails, unknown url fails, missing/invalid allowlist fails, non-SemVer allowlist version fails (research R7)
 - [ ] T023 [US2] Add `kube-state/clusters/local/cnpg/` and `kube-state/clusters/local/redis-operator/` (`helm.yaml`, `values.yaml`), update `kube-state/clusters/local/cluster.yaml` `releaseOrder`, bump `shop-operator` (0.2.0, `dependsOn` cnpg + redis-operator) and `shophub-discord` (0.2.0) per contracts/charts-and-kube-state.md; document the Discord token bootstrap and the new releases in `kube-state/README.md`; before opening the PR, render both upstream releases locally (`helm template` with their `values.yaml`) and run `kube-state/.github/scripts/check-images.sh` and `check-schema.sh` on the result so upstream image tags pass the repo rules; open the kube-state PR, get `charts-exist`, `render`, `e2e` green, squash-merge
 
 **Checkpoint**: bring-up from kube-state installs the whole platform including the operator
@@ -336,3 +336,41 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
   - A fresh pull with an empty `DOCKER_CONFIG` (no credentials) succeeded. The pulled image runs
     as 65532 and refuses `--shop-image-tag=latest`.
 - Remaining in Phase 5: T019–T023 (helm-charts and kube-state).
+
+### 2026-11-23 — Phase 5 part 2 / US2 (T019–T023)
+
+- **Deviation (value name)**: the chart value `discord.tokenSecret` from the contract would trip
+  the helm-charts secrets scan (key matches "token"/"secret" and isn't a by-name reference).
+  Renamed to **`discord.tokenSecretName`** in the chart, the contract, data-model.md,
+  research.md and the operator README.
+- **T019**:
+  - `shop-operator/hack/sync-chart.sh` renders `config/crd/bases` into
+    `templates/crds.yaml` (`helm.sh/resource-policy: keep`; refuses CRDs containing `{{`) and
+    the generated ClusterRole plus leader-election Role and their bindings into
+    `templates/rbac.yaml`. Merged as shop-operator-spec#2 (`e1b3da8`) after approval; no new
+    image.
+  - Chart `shop-operator` 0.2.0 / appVersion 0.1.0: Deployment (leader election, non-root,
+    read-only root fs, seccomp RuntimeDefault, drop ALL, `/healthz` `/readyz` on :8081,
+    `POD_NAMESPACE` from the downward API), ServiceAccount, values `image`, `shopImage`,
+    `discord.guildID`, `discord.tokenSecretName`, `resources`; NOTES warn when Discord is
+    unconfigured.
+- **T020**: `shophub-discord` 0.2.0 — `templates/discordchannel.yaml` (`platform-alerts`).
+- **T021**:
+  - `install` job installs `shop-operator` first, waits for the three CRDs, then the rest, and
+    checks the operator rolls out.
+  - Local toolbox: layout, lint ×4, kubeconform, image check, secrets scan, bats 52/52.
+  - helm-charts-spec#5: all 5 checks green; on kind the operator "successfully rolled out"
+    without CNPG/Redis/Discord.
+  - Merged after approval as `5db7710`; `publish` + `verify-public` green; both 0.2.0 charts
+    anonymously pullable.
+- **T022**: `.github/upstream-charts.yaml` + allowlist rule in `check-schema.sh` (all contract
+  rows incl. duplicates and non-`oci://`); fixture writes an allowlist; 7 new bats cases →
+  92/92.
+- **T023**:
+  - Releases `cnpg` and `redis-operator` added; `releaseOrder` cnpg → redis-operator →
+    shop-operator → shophub → shophub-discord; `shop-operator` dependsOn both.
+  - Bumps to 0.2.0; e2e expects 5 releases; README covers the upstream charts and the Discord
+    token bootstrap.
+  - R1: all releases rendered locally and checked (CNPG `1.30.2`, OT `v0.27.0`); layout,
+    schema and secrets OK.
+  - kube-state-spec#3 opened; **not merged** (waiting for approval).

@@ -16,7 +16,7 @@ image: { repository: ghcr.io/nikola031ue/shop-operator, tag: "" }   # "" → app
 shopImage: { repository: nginx, tag: "1.27.3" }                   # placeholder Shop app (FR-007)
 discord:
   guildID: ""                         # Discord server ID (not secret)
-  tokenSecret: shop-operator-discord  # Secret in the release namespace, key "token"
+  tokenSecretName: shop-operator-discord  # Secret in the release namespace, key "token"
 resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { memory: 128Mi } }
 ```
 

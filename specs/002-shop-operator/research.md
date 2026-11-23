@@ -96,7 +96,7 @@ live on 2026-11-23 with `helm show chart` against the public registries.
   `POST /guilds/{guild}/channels` (type 0, topic contains `shophub-uid:<CR uid>`),
   `POST /channels/{id}/webhooks`, `DELETE /channels/{id}`, `GET /guilds/{guild}/channels`.
   It authenticates with `Authorization: Bot <token>` and honours `429 retry_after`. The bot token
-  comes from a Secret (`discord.tokenSecret`, key `token`) and the guild ID from chart values.
+  comes from a Secret (`discord.tokenSecretName`, key `token`) and the guild ID from chart values.
   Idempotency: `status.channelID`; if it is empty, look up a channel whose topic carries the CR
   UID before creating a new one. The webhook URL goes into Secret `<name>-discord-webhook`
   (key `url`), owned by the DiscordChannel. A finalizer deletes the Discord channel.
