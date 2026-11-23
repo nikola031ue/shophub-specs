@@ -1,29 +1,28 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 2.0.0
-Bump rationale: MAJOR — Principle III is redefined (test-first and NON-NEGOTIABLE status
-removed) and Principle V is redefined (kube-state no longer holds all cluster state). Both
-are backward-incompatible changes to existing principles.
+Version change: 1.1.0 → 1.2.0 → 1.2.1 (both during feature 002-shop-operator)
 
-Modified principles:
-  - III. Test-First (NON-NEGOTIABLE) → III. Tested Before Merge
-      Unit + integration tests stay mandatory before merge; test-first is now recommended
-      (SHOULD), not required; NON-NEGOTIABLE marker removed.
-  - V. Declarative Deployment via Operators & Helm → V. Declarative Deployment: Platform in
-    Git, Shops via API
-      kube-state holds platform state only; user-created Shop, Wallet, DiscordChannel and
-      database CRs are runtime state created by the ShopHub backend through the Kubernetes
-      API under a least-privilege ServiceAccount + RBAC, and are not stored in git.
-Modified sections:
-  - Development Workflow & Quality Gates: solo development reclassified from "compliance" to
-    a recorded deviation from Requirement 5.1 (D-1), mitigated by self-review and required CI;
-    Definition of done no longer demands tests written first.
-  - Governance: only Principle I remains NON-NEGOTIABLE; project-level deviations are
-    recorded in this constitution.
-Added sections: none (new "Recorded deviations" list lives inside the Workflow section)
+Version numbering note: the maintainer's numbering is authoritative. The ratified baseline is
+1.1.0 (commit 7e6d30e). Earlier drafts of this file printed 2.0.0 (and 2.1.0 after the first
+002 amendment); those labels are superseded and renumbered here as 1.1.0 and 1.2.0.
+
+1.1.0 → 1.2.0 — MINOR (2026-11-22)
+  Principle V material expansion: runtime state split into user resources (Shop, Wallet,
+  DiscordChannel; created only by the ShopHub backend) and derived resources (databases,
+  workloads, services, secrets; created only by the shop-operator as owned children);
+  least-privilege RBAC now also binds the shop-operator ServiceAccount.
+
+1.2.0 → 1.2.1 — PATCH (2026-11-23)
+  Principle V wording fix (002 analysis finding C1): derived resources are owned by the user
+  resource they realise (Shop, Wallet or DiscordChannel), not only by a Shop — covers a
+  Wallet's generated key Secret and a DiscordChannel's webhook Secret. No new obligation.
+
+Modified principles: V. Declarative Deployment: Platform in Git, Shops via API
+Added sections: none
 Removed sections: none
-
+Templates: none require changes (plan template's Constitution Check references Principles I–VII
+generically).
 Follow-up TODOs: none
 -->
 
@@ -101,18 +100,26 @@ database operators (CloudNativePG, Redis operator) and all RBAC:
 - The shop-operator Helm chart MUST install the operator and its CRDs; the shophub chart MUST
   consume those CRDs and the prometheus-stack.
 
-**Runtime state** — `Shop`, `Wallet`, `DiscordChannel` and database CRs (CloudNativePG
-`Cluster`, Redis) created on behalf of ShopHub users:
+**Runtime state** — created on behalf of ShopHub users, in two tiers:
 
-- MUST be created, updated and deleted only by the ShopHub backend through the Kubernetes API.
-- MUST NOT be stored in `kube-state` or any other git repository.
+- *User resources*: `Shop`, `Wallet` and `DiscordChannel` CRs. They MUST be created, updated
+  and deleted only by the ShopHub backend through the Kubernetes API.
+- *Derived resources*: everything the shop-operator creates to realise a user resource —
+  database CRs (CloudNativePG `Cluster`, Redis), workloads, services and secrets (e.g. a
+  Wallet's generated key, a DiscordChannel's webhook). They MUST be created, updated and
+  deleted only by the shop-operator, as owned children of the user resource they realise (a
+  Shop, Wallet or DiscordChannel, via owner references), so deleting that resource removes
+  them. The backend MUST NOT create them directly.
+- Neither tier MAY be stored in `kube-state` or any other git repository.
 - The backend MUST run under a dedicated ServiceAccount whose RBAC grants only the verbs it
-  needs on exactly these resource kinds, in the namespaces it manages. Wildcard resources or
-  verbs and `cluster-admin` (or equivalent) bindings are forbidden.
-- That ServiceAccount and its Role/RoleBinding (or ClusterRole, if justified in the plan) are
-  platform state, defined in the shophub chart.
-- Runtime CRs MUST carry labels identifying the owning user and shop. Restoring runtime state
-  is the ShopHub backend's responsibility, not `kube-state`'s.
+  needs on exactly the user-resource kinds, in the namespaces it manages. The shop-operator's
+  ServiceAccount MUST likewise be limited to the kinds it manages. Wildcard resources or verbs
+  and `cluster-admin` (or equivalent) bindings are forbidden for both.
+- These ServiceAccounts and their Role/RoleBinding (or ClusterRole, if justified in the plan)
+  are platform state, defined in the shophub and shop-operator charts respectively.
+- Runtime resources MUST carry labels identifying the owning user and shop; derived resources
+  copy them from their Shop. Restoring runtime state is the ShopHub backend's responsibility,
+  not `kube-state`'s.
 
 **For both**: raw `kubectl apply` / `kubectl create` / `kubectl edit` by a human is forbidden
 for changing cluster state. `kubectl` MAY be used read-only for inspection and debugging.
@@ -202,4 +209,4 @@ Rationale: Requirement 4.1; observability is a feature of every Shop, not an aft
 - **Review cadence**: revisit this constitution when the requirements document changes and
   before each project defense.
 
-**Version**: 2.0.0 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-20
+**Version**: 1.2.1 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-23
