@@ -195,8 +195,9 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
 - **T002**: kubebuilder **v4.16.0** (released 2026-09-10) scaffold on branch `002-shop-operator`
   in `shop-operator`: controller-runtime v0.25.0, k8s.io v0.37.0, controller-tools v0.22.0,
   `go 1.26.0` directive, API group `shophub.io/v1alpha1`. Added `.gitattributes` (LF) and
-  `cover.out` to `.gitignore`. Removed `.devcontainer/`. Kept kubebuilder's kind-based
-  `test/e2e` scaffold (excluded from `make test`, not in CI). The old one-line README was
+  `cover.out` to `.gitignore`. Removed `.devcontainer/` and, on request, the kind-based
+  `test/e2e` + `test/utils` scaffold and its Makefile targets (`setup-test-e2e`, `test-e2e`,
+  `cleanup-test-e2e`, `KIND`); `make test` now runs `go test ./...`; AGENTS.md updated. The old one-line README was
   replaced by kubebuilder's; T017 rewrites it.
 - **T003**: `hack/fetch-crds.sh` wrote `test/crds/postgresql.cnpg.io_clusters.yaml` (v1, chart
   0.29.2) and `test/crds/redis.redis.opstreelabs.in_redis.yaml` (v1beta2, chart 0.27.0).
