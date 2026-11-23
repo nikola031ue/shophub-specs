@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-22
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Shop operator per Requirements 3.1 and 3.2. Three custom resources:
 Shop (name, availability standard=2 replicas / high=3, database standard=PostgreSQL via CNPG /

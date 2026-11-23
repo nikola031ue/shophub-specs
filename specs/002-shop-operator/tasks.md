@@ -443,3 +443,13 @@ Findings (reported only, nothing changed):
   out of scope here; note for feature 3 / backend namespaces.
 - Info: the envtest network-isolation limitation (T024) and the unlabelled hand-created token
   Secret (Complexity Tracking) remain as recorded.
+
+### 2026-11-23 — T025 follow-up decisions (maintainer)
+
+- R-1: Complexity Tracking's ClusterRole row now states the residual risk plainly. Narrowing
+  deferred to **spec 004** (plan.md → Deferred follow-ups).
+- R-2: fixed in shop-operator-spec#3 (`IMG` and `config/manager` pinned to
+  `ghcr.io/nikola031ue/shop-operator:0.1.0`).
+- R-3: deferred to **spec 003** (plan.md → Deferred follow-ups).
+- spec.md Status: Implemented.
+

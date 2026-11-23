@@ -156,7 +156,16 @@ Public) → `kube-state`.
 
 | Violation / exception | Why Needed | Simpler Alternative Rejected Because |
 |-----------------------|------------|--------------------------------------|
-| ClusterRole for the operator (Principle V allows it only if justified) | Shops live in user namespaces chosen at runtime by the future backend; no fixed namespace list exists at install time | Namespace-scoped Roles can't be created for namespaces that don't exist yet. Mitigation: exact resources and verbs, no wildcards, Secret cache limited by label (R14) |
+| ClusterRole for the operator (Principle V allows it only if justified) | Shops live in user namespaces chosen at runtime by the future backend; no fixed namespace list exists at install time | Namespace-scoped Roles can't be created for namespaces that don't exist yet. Mitigation: exact resources and verbs, no wildcards. **Residual risk:** the ServiceAccount may read, change and delete *every* Secret in the cluster; the label-filtered cache (R14) only limits what the operator keeps in memory, not what it is allowed to access, and the uncached reader can read any Secret. Narrowing is deferred to spec 004 (see Deferred follow-ups) |
 | One-time `kubectl create secret` for the Discord bot token (Principle V "no raw kubectl create") | The token can't be in git (Principle VI), and no secret manager is in scope | Having `bring-up.sh` create it changes the 001 contract (never applies manifests). Sealed Secrets/SOPS add a platform component. The operator works without it (`DiscordCredentialsMissing`) (R15) |
 | Maintainer makes hand changes (apply/delete of test Shop/Wallet/DiscordChannel CRs, deleting a Shop's Deployment to test self-healing, deleting the namespace afterwards) in throwaway namespace `qs` (quickstart 3–5, T024) | The ShopHub backend, the only allowed creator of user resources, doesn't exist yet | Waiting for the backend would leave US1 unverifiable on a real cluster. Every hand change is limited to namespace `qs`, which is deleted after validation; automated tests use envtest instead |
 | Per-Shop metrics, logs, traces, dashboards and alert rules are not provisioned by the Shop reconciler yet (Principle VII) | The Shop app is a placeholder with no real traffic or instrumentation, and prometheus-stack isn't installed until the observability feature | Adding ServiceMonitors and dashboards now would target a placeholder and an absent Prometheus. The observability feature MUST extend the Shop reconciler; this feature already provides the owner/shop labels and per-Shop DiscordChannel it needs |
+
+## Deferred follow-ups
+
+Findings from the T025 self-review that this feature records but does not fix:
+
+| ID | Finding | Deferred to |
+|----|---------|-------------|
+| R-1 | Cluster-wide Secret access for the operator's ServiceAccount (see the ClusterRole row above). Narrow it: read the Discord token through a Role limited to `shop-operator-system`, and limit Secret access in shop namespaces, e.g. per-namespace Roles created by the backend or a ValidatingAdmissionPolicy | spec 004 |
+| R-3 | Redis for `database: light` runs without authentication, so any pod in the cluster can reach `<shop>-redis`. Add Redis auth (password in a Secret, referenced by name) and/or NetworkPolicies for shop namespaces | spec 003 |
