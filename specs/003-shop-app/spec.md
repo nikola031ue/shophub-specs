@@ -339,7 +339,9 @@ scenarios on each; try to connect to the light shop's database without credentia
   - generate an admin password Secret and pass it to the app by secret reference (FR-004);
   - for light shops, generate a Redis password Secret, make Redis require it and pass it to the
     app by secret reference (FR-020);
-  - for light shops, give Redis persistent storage (FR-021).
+  - for light shops, give Redis persistent storage (FR-021);
+  - give the shop app container more memory (request 128 MiB, limit 256 MiB), so the app does not
+    depend on fitting the 0.1.0 limit of 128 MiB (FR-023).
 
   All new Secrets and storage are derived resources owned by the Shop. Existing 0.1.0 Shops MUST
   be brought to the new state by reconciliation, without the maintainer changing them by hand.

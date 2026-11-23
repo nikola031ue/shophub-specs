@@ -28,7 +28,8 @@ updated with new values while they exist.
 | `REDIS_PASSWORD` | – | ✓ | **new**: `secretKeyRef` `<shop>-redis-auth` / `password` |
 
 - **Port** `80` (`http`); readiness = TCP connect to `http` (unchanged).
-- **Memory** limit 128 Mi (unchanged).
+- **Memory**: **changed**: request `128Mi`, limit `256Mi` (0.1.0: request 32Mi, limit 128Mi).
+  CPU request `10m` unchanged. See research R16.
 - **New**: pod `securityContext.sysctls` `net.ipv4.ip_unprivileged_port_start=0`, so a non-root
   app can bind 80 (research R5).
 - **New**: pod-template annotations `shophub.io/admin-secret-uid` and (light)

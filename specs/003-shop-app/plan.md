@@ -15,6 +15,8 @@ Two deliveries, strictly in order.
   passed as `REDIS_PASSWORD`;
 - Redis persistent storage with AOF;
 - a pod sysctl so a non-root app can bind port 80;
+- shop container memory raised to request 128Mi / limit 256Mi, so the app doesn't depend on
+  fitting 128 Mi;
 - an automatic one-time recreate of 0.1.0 Redis instances that lack storage.
 
 It ships as operator `v0.2.0`, chart `shop-operator` `0.3.0` and a kube-state PR. Live 0.1.0 shops
@@ -80,7 +82,7 @@ changes, one chart bump and two kube-state PRs.
 **Constraints**:
 
 - Only the settings the operator injects (002 plus the 0.2.0 additions).
-- Port 80, TCP readiness, 128 Mi memory limit.
+- Port 80, TCP readiness, memory request 128 Mi / limit 256 Mi (operator 0.2.0, research R16).
 - 2–3 replicas sharing nothing but the database.
 - No secrets in git, logs or status.
 - The 5.3 layout is immutable.
@@ -117,7 +119,7 @@ Gate result: **PASS**. Every exception is recorded in Complexity Tracking.
 ```text
 specs/003-shop-app/
 ├── plan.md              # this file
-├── research.md          # R1–R15
+├── research.md          # R1–R16
 ├── data-model.md        # entities, PostgreSQL schema, Redis keys
 ├── quickstart.md        # validation scenarios 1–9
 ├── contracts/
@@ -132,7 +134,7 @@ specs/003-shop-app/
 
 ```text
 shop-operator/                          # Phase 1 only
-├── internal/resources/resources.go     # env refs, sysctl, annotations, Redis auth/storage/AOF
+├── internal/resources/resources.go     # env refs, sysctl, annotations, memory, Redis auth/storage/AOF
 ├── internal/resources/secrets.go       # new: admin / redis-auth Secret builders + random values
 ├── internal/controller/shop_controller.go   # ensure Secrets, RedisCredentialsLost, 0.1.0 recreate, Owns(Secret)
 ├── internal/controller/common.go       # reason constant
@@ -163,7 +165,7 @@ Estimated breakdown. `/speckit-tasks` will finalise it.
 
 | Phase | Content | ≈ Tasks |
 |-------|---------|---------|
-| 1 Operator 0.2.0 | Secrets and env refs; Redis auth, storage and AOF; sysctl and annotations; 0.1.0 recreate and `RedisCredentialsLost`; envtest; README and 002 contract note; release `v0.2.0`; chart `0.3.0`; kube-state PR and live upgrade check (quickstart 1–2) | 6 |
+| 1 Operator 0.2.0 | Secrets and env refs; Redis auth, storage and AOF; sysctl, annotations and memory 128Mi/256Mi; 0.1.0 recreate and `RedisCredentialsLost`; envtest; README and 002 contract note; release `v0.2.0`; chart `0.3.0`; kube-state PR and live upgrade check (quickstart 1–2) | 6 |
 | 2 App setup | Scaffold `shop` (solution, Angular, Dockerfile); CI workflow; branch protection (ask first) | 3 |
 | 3 Foundation | Settings and startup init; `IShopStore` with the shared contract suite; PostgreSQL store; Redis store; admin auth (bootstrap, lockout, cookie, store-backed keys) | 5 |
 | 4 US1 items | Admin item endpoints with tests; Angular admin (login, items, password) | 2 |

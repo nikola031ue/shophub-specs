@@ -25,7 +25,7 @@ Expected: all pass. The new envtest specs cover:
 - for light shops, Redis Secret, `redisSecret`, storage and `appendonly`;
 - `RedisCredentialsLost`;
 - the 0.1.0 Redis recreate;
-- the sysctl and the UID annotations.
+- the sysctl, the UID annotations and the memory request/limit (128Mi/256Mi).
 
 ## Scenario 2 — Automatic upgrade of 0.1.0 Shops (Phase 1)
 
@@ -40,6 +40,7 @@ Expected: all pass. The new envtest specs cover:
    - `redis-cli -a` without a password gets `NOAUTH`; with the password it gets `PONG`.
    - `CONFIG GET appendonly` returns `yes`.
    - `std` database pod UID is unchanged.
+   - The shop pods show memory request `128Mi` and limit `256Mi`.
 4. Delete the `lite-redis-auth` Secret. Expected: `lite` shows `RedisCredentialsLost` and no new
    Secret appears. Recover by deleting and recreating `lite`.
 

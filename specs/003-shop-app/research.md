@@ -185,7 +185,8 @@ in Phase 1, before any app work.
     - the runtime is `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled`, non-root.
     - All base images are pinned by digest.
   - **Settings**: `ASPNETCORE_HTTP_PORTS=80`, workstation non-concurrent GC and
-    `InvariantGlobalization` to stay inside the operator's 128 Mi limit.
+    `InvariantGlobalization`, to keep the footprint well inside the 256 Mi limit from operator
+    0.2.0 (R16).
   - **Static serving**: ASP.NET serves the files and falls back to `index.html` for client routes.
 - **Rationale**: One image (FR-023), smallest attack surface, and a memory footprint that fits.
 - **Alternatives**: a separate nginx for the UI (two containers, an operator change); Alpine
@@ -209,6 +210,18 @@ in Phase 1, before any app work.
     first, as in 002).
 - **Rationale**: Requirement 5.2 and Constitution II/III. GitHub's Ubuntu runners have Docker for
   Testcontainers.
+
+## R16 — Shop pod memory (operator 0.2.0)
+
+- **Decision**: Operator 0.2.0 sets the shop container's memory to request `128Mi`, limit
+  `256Mi`, replacing 32Mi/128Mi from 0.1.0. The CPU request stays at `10m`. Values stay
+  constants in `internal/resources`, not chart values.
+- **Rationale**: Maintainer decision: the app must not depend on fitting 128 Mi. A .NET runtime
+  plus Kestrel, the Npgsql/Redis clients and static files commonly idles at 60–100 Mi and peaks
+  higher under GC. A 128Mi request makes the scheduler reserve what the app really uses. The
+  change ships in the same release as R1–R5, so no extra release.
+- **Alternatives**: keep 128Mi and tune the GC (fragile, an OOM risk under load); make the
+  values configurable per chart (more surface than needed now).
 
 ## R15 — Rolling the app out
 
