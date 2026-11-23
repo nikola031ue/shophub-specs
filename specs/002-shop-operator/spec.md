@@ -245,6 +245,9 @@ disappears.
   their own `kube-state` releases, using their upstream charts at pinned versions, ordered before
   `shop-operator` in `releaseOrder`, so a single bring-up from `kube-state` still provides
   everything (feature 001 FR-018 behaviour, including waiting for their resource types).
+- **FR-025**: The `shophub-discord` chart MUST replace its feature 001 placeholder with one
+  DiscordChannel for platform and cluster alerts (feature 001 clarification Q1). This channel is
+  platform state declared in git, not a user resource.
 
 ### Key Entities
 
