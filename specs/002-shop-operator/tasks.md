@@ -104,7 +104,7 @@ already contain the DiscordChannel controller from US3.
 - [X] T020 [P] [US2] Replace the `helm-charts/charts/shophub-discord` placeholder with `templates/discordchannel.yaml` (one DiscordChannel, `channelName` from values, default `platform-alerts`) and bump to 0.2.0 (spec FR-025)
 - [X] T021 [US2] Change the `install` job in `helm-charts/.github/workflows/charts.yaml` to install `shop-operator` first and then the other charts; open the helm-charts PR, get all checks green (the chart must become Ready without CNPG/Redis or a Discord Secret), squash-merge, and confirm `publish` and `verify-public` push both 0.2.0 charts
 - [X] T022 [P] [US2] Add `kube-state/.github/upstream-charts.yaml` and the allowlist rule to `kube-state/.github/scripts/check-schema.sh` (every row of the contracts/charts-and-kube-state.md rule table), with bats cases in `kube-state/.github/tests/check-schema.bats` for: allowlisted url+version passes, allowlisted url with another tag fails, unknown url fails, missing/invalid allowlist fails, non-SemVer allowlist version fails (research R7)
-- [ ] T023 [US2] Add `kube-state/clusters/local/cnpg/` and `kube-state/clusters/local/redis-operator/` (`helm.yaml`, `values.yaml`), update `kube-state/clusters/local/cluster.yaml` `releaseOrder`, bump `shop-operator` (0.2.0, `dependsOn` cnpg + redis-operator) and `shophub-discord` (0.2.0) per contracts/charts-and-kube-state.md; document the Discord token bootstrap and the new releases in `kube-state/README.md`; before opening the PR, render both upstream releases locally (`helm template` with their `values.yaml`) and run `kube-state/.github/scripts/check-images.sh` and `check-schema.sh` on the result so upstream image tags pass the repo rules; open the kube-state PR, get `charts-exist`, `render`, `e2e` green, squash-merge
+- [X] T023 [US2] Add `kube-state/clusters/local/cnpg/` and `kube-state/clusters/local/redis-operator/` (`helm.yaml`, `values.yaml`), update `kube-state/clusters/local/cluster.yaml` `releaseOrder`, bump `shop-operator` (0.2.0, `dependsOn` cnpg + redis-operator) and `shophub-discord` (0.2.0) per contracts/charts-and-kube-state.md; document the Discord token bootstrap and the new releases in `kube-state/README.md`; before opening the PR, render both upstream releases locally (`helm template` with their `values.yaml`) and run `kube-state/.github/scripts/check-images.sh` and `check-schema.sh` on the result so upstream image tags pass the repo rules; open the kube-state PR, get `charts-exist`, `render`, `e2e` green, squash-merge
 
 **Checkpoint**: bring-up from kube-state installs the whole platform including the operator
 
@@ -112,7 +112,7 @@ already contain the DiscordChannel controller from US3.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T024 Prerequisite: a Discord server, bot token and guild ID (quickstart Prerequisites). First run quickstart Scenario 2a step 1 (upgrade from the feature 001 releases), then reset Kubernetes and run Scenarios 1, 2, 6, 3, 2a step 2, 4, 5, 7 in that order on Docker Desktop; record timings for SC-001, SC-002, SC-003, SC-005, SC-006 and results in a "Validation log" section of `specs/002-shop-operator/quickstart.md`; delete namespace `qs` afterwards
+- [X] T024 Prerequisite: a Discord server, bot token and guild ID (quickstart Prerequisites). First run quickstart Scenario 2a step 1 (upgrade from the feature 001 releases), then reset Kubernetes and run Scenarios 1, 2, 6, 3, 2a step 2, 4, 5, 7 in that order on Docker Desktop; record timings for SC-001, SC-002, SC-003, SC-005, SC-006 and results in a "Validation log" section of `specs/002-shop-operator/quickstart.md`; delete namespace `qs` afterwards
 - [ ] T025 [P] Self-review all three merged diffs against the plan's Constitution Check and Complexity Tracking; grep all repos for secret-looking values (SC-007); record the outcome and any deviations in the implementation log at the end of `specs/002-shop-operator/tasks.md`
 
 ---
@@ -387,3 +387,16 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
 - kube-state-spec#3 CI after the fix: all 7 checks green. e2e: `5 installed` with the CNPG,
   Redis and shophub.io CRDs `Established`, re-run `5 unchanged`, wrong context refused.
   **Not merged** — waiting for approval (T023 stays open until then).
+
+### 2026-11-23 — T024 quickstart validation
+
+- All scenarios pass; results and timings in quickstart.md → Validation log. SC-001 116 s,
+  SC-002 3 s, SC-003 9 s (shops) / 2 s (channel), SC-006 86 s, SC-005 reasons appeared within
+  seconds (e.g. `DiscordForbidden`, `InUse`), SC-007 0 matches.
+- T023 is complete: kube-state-spec#3 was merged by the maintainer (`4ff6004`).
+- Discord guild ID committed via kube-state-spec#4 (merged by the maintainer, `5f0c1fe`).
+- Finding: the bot initially lacked **Manage Webhooks**. The operator behaved as specified:
+  `DiscordForbidden` with the permission hint, a 5-minute retry, and reuse of the
+  already-created channel. Bot permissions are documented in the shop-operator README.
+- Scenario 1 limitation: envtest can't run under `docker --network none`; offline behaviour
+  relies on the tests using only local fakes.
