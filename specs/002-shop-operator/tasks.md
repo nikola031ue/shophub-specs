@@ -34,10 +34,10 @@ already contain the DiscordChannel controller from US3.
 
 **Purpose**: Toolchain and operator repository skeleton
 
-- [ ] T001 Install Go on the maintainer machine (`winget install GoLang.Go`), start Docker Desktop, and record `go version` / `docker info` output in the implementation log at the end of this file (quickstart.md Prerequisites)
-- [ ] T002 Scaffold `shop-operator/` with kubebuilder v4: `kubebuilder init --domain io --repo github.com/nikola031ue/shop-operator`, then `kubebuilder create api --group shophub --version v1alpha1 --kind {Shop,Wallet,DiscordChannel} --resource --controller` (API group `shophub.io`, research R1–R2); keep the scaffolded Makefile, add `.gitattributes` (LF) and extend `.gitignore` (`bin/`, `cover.out`)
-- [ ] T003 [P] Add `shop-operator/hack/fetch-crds.sh` that writes the upstream CNPG `Cluster` CRD (chart 0.29.2, from `helm template`) and OT `Redis` CRD (chart 0.27.0, from `helm show crds`) into `shop-operator/test/crds/`, and commit the fetched files (research R4, R6)
-- [ ] T004 [P] Add `shop-operator/.github/workflows/ci.yaml`: jobs `lint` (`go vet`, golangci-lint) and `test` (`go test ./...` with `setup-envtest`) on PR; job `release` on tag `vX.Y.Z` building `linux/amd64` from `shop-operator/Dockerfile` and pushing `ghcr.io/nikola031ue/shop-operator:X.Y.Z` with `GITHUB_TOKEN` (`packages: write`); refuse tags that are not strict SemVer (research R16)
+- [X] T001 Install Go on the maintainer machine (`winget install GoLang.Go`), start Docker Desktop, and record `go version` / `docker info` output in the implementation log at the end of this file (quickstart.md Prerequisites)
+- [X] T002 Scaffold `shop-operator/` with kubebuilder v4: `kubebuilder init --domain io --repo github.com/nikola031ue/shop-operator`, then `kubebuilder create api --group shophub --version v1alpha1 --kind {Shop,Wallet,DiscordChannel} --resource --controller` (API group `shophub.io`, research R1–R2); keep the scaffolded Makefile, add `.gitattributes` (LF) and extend `.gitignore` (`bin/`, `cover.out`)
+- [X] T003 [P] Add `shop-operator/hack/fetch-crds.sh` that writes the upstream CNPG `Cluster` CRD (chart 0.29.2, from `helm template`) and OT `Redis` CRD (chart 0.27.0, from `helm show crds`) into `shop-operator/test/crds/`, and commit the fetched files (research R4, R6)
+- [X] T004 [P] Add `shop-operator/.github/workflows/ci.yaml`: jobs `lint` (`go vet`, golangci-lint) and `test` (`go test ./...` with `setup-envtest`) on PR; job `release` on tag `vX.Y.Z` building `linux/amd64` from `shop-operator/Dockerfile` and pushing `ghcr.io/nikola031ue/shop-operator:X.Y.Z` with `GITHUB_TOKEN` (`packages: write`); refuse tags that are not strict SemVer (research R16)
 
 ---
 
@@ -47,11 +47,11 @@ already contain the DiscordChannel controller from US3.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 [P] Define the Shop API in `shop-operator/api/v1alpha1/shop_types.go` with kubebuilder markers for data-model.md `Shop.metadata.name` (CEL length rule at the root), `Shop.spec.shopName`, `Shop.spec.availability`, `Shop.spec.database`, `Shop.spec.walletRef.name`, `Shop.spec.discordChannelRef.name` (immutability via CEL with the contracts/crds.md messages) and status fields `Shop.status.*`; printer columns per contracts/crds.md
-- [ ] T006 [P] Define the Wallet API in `shop-operator/api/v1alpha1/wallet_types.go` for data-model.md `Wallet.spec.address` (pattern + CEL immutable once set) and `Wallet.status.mode` (enum), plus `Wallet.status.address`, `keySecretName`, `usedBy`, conditions; printer columns per contracts/crds.md
-- [ ] T007 [P] Define the DiscordChannel API in `shop-operator/api/v1alpha1/discordchannel_types.go` for data-model.md `DiscordChannel.spec.channelName` (pattern) plus `DiscordChannel.status.channelID`, `webhookSecretName`, `usedBy`, conditions; printer columns per contracts/crds.md; then run `make manifests generate` so `shop-operator/config/crd/bases/` is current
-- [ ] T008 Add shared helpers in `shop-operator/internal/controller/common.go` (set `Ready` condition with reason constants from contracts/crds.md, `observedGeneration`, owner labels `shophub.io/owner`/`shophub.io/shop` per data-model.md) and an envtest suite in `shop-operator/internal/controller/suite_test.go` that loads `config/crd/bases` and `test/crds`; add `shop-operator/internal/controller/validation_test.go` asserting every admission rejection row of contracts/crds.md (SC-004)
-- [ ] T009 Wire `shop-operator/cmd/main.go`: flags `--shop-image`, `--shop-image-tag`, `--discord-guild-id`, `--discord-token-secret` (data-model.md "Platform configuration"); discovery check that only registers `Owns()` for served database kinds (research R5); Secret cache restricted to label `app.kubernetes.io/managed-by=shop-operator` (research R14); field indexes `spec.walletRef.name` and `spec.discordChannelRef.name` (research R13)
+- [X] T005 [P] Define the Shop API in `shop-operator/api/v1alpha1/shop_types.go` with kubebuilder markers for data-model.md `Shop.metadata.name` (CEL length rule at the root), `Shop.spec.shopName`, `Shop.spec.availability`, `Shop.spec.database`, `Shop.spec.walletRef.name`, `Shop.spec.discordChannelRef.name` (immutability via CEL with the contracts/crds.md messages) and status fields `Shop.status.*`; printer columns per contracts/crds.md
+- [X] T006 [P] Define the Wallet API in `shop-operator/api/v1alpha1/wallet_types.go` for data-model.md `Wallet.spec.address` (pattern + CEL immutable once set) and `Wallet.status.mode` (enum), plus `Wallet.status.address`, `keySecretName`, `usedBy`, conditions; printer columns per contracts/crds.md
+- [X] T007 [P] Define the DiscordChannel API in `shop-operator/api/v1alpha1/discordchannel_types.go` for data-model.md `DiscordChannel.spec.channelName` (pattern) plus `DiscordChannel.status.channelID`, `webhookSecretName`, `usedBy`, conditions; printer columns per contracts/crds.md; then run `make manifests generate` so `shop-operator/config/crd/bases/` is current
+- [X] T008 Add shared helpers in `shop-operator/internal/controller/common.go` (set `Ready` condition with reason constants from contracts/crds.md, `observedGeneration`, owner labels `shophub.io/owner`/`shophub.io/shop` per data-model.md) and an envtest suite in `shop-operator/internal/controller/suite_test.go` that loads `config/crd/bases` and `test/crds`; add `shop-operator/internal/controller/validation_test.go` asserting every admission rejection row of contracts/crds.md (SC-004)
+- [X] T009 Wire `shop-operator/cmd/main.go`: flags `--shop-image`, `--shop-image-tag`, `--discord-guild-id`, `--discord-token-secret` (data-model.md "Platform configuration"); discovery check that only registers `Owns()` for served database kinds (research R5); Secret cache restricted to label `app.kubernetes.io/managed-by=shop-operator` (research R14); field indexes `spec.walletRef.name` and `spec.discordChannelRef.name` (research R13)
 
 **Checkpoint**: `make test` passes with the validation tests; CRDs generate cleanly
 
@@ -182,3 +182,50 @@ Task: "T015 Discord client + httptest tests in shop-operator/internal/discord/" 
 - 25 tasks, sized for a solo developer; commit per task with Conventional Commits.
 - Never commit the Discord token, generated keys or webhook URLs (Principle VI).
 - Manual CR applies are allowed only in namespace `qs` during T024 (plan Complexity Tracking).
+
+## Implementation log
+
+### 2026-11-23 — Phase 1–2 (T001–T009)
+
+- **T001**: Go was already installed (`winget` found `GoLang.Go`): `go version go1.27.4
+  windows/amd64`. Docker Desktop running: `docker info` → server 29.9.3. kubebuilder ships no
+  Windows binary and envtest is most reliable on Linux, so scaffolding, tests and lint run in a
+  local dev image `shop-operator-dev:local` (`golang:1.27-bookworm` + kubebuilder v4.16.0; not
+  committed). CI runs the same commands on `ubuntu-latest`.
+- **T002**: kubebuilder **v4.16.0** (released 2026-09-10) scaffold on branch `002-shop-operator`
+  in `shop-operator`: controller-runtime v0.25.0, k8s.io v0.37.0, controller-tools v0.22.0,
+  `go 1.26.0` directive, API group `shophub.io/v1alpha1`. Added `.gitattributes` (LF) and
+  `cover.out` to `.gitignore`. Removed `.devcontainer/`. Kept kubebuilder's kind-based
+  `test/e2e` scaffold (excluded from `make test`, not in CI). The old one-line README was
+  replaced by kubebuilder's; T017 rewrites it.
+- **T003**: `hack/fetch-crds.sh` wrote `test/crds/postgresql.cnpg.io_clusters.yaml` (v1, chart
+  0.29.2) and `test/crds/redis.redis.opstreelabs.in_redis.yaml` (v1beta2, chart 0.27.0).
+- **T004**: kubebuilder's `lint.yml`, `test.yml`, `test-e2e.yml` replaced by
+  `.github/workflows/ci.yaml` (jobs `lint`, `test`, `release`). Actions are pinned by SHA. The
+  `test` job also fails if `make manifests generate` changes `api/` or `config/`. `release`
+  refuses non-SemVer tags and existing image versions.
+- **T005–T007**: types per data-model.md, with CEL rules for immutability, the 40-char Shop
+  name, and Wallet address set-once; printer columns per contracts/crds.md.
+- **T008**: `internal/controller/common.go` (reason constants incl. `KeyLost`, `setReady`,
+  `childLabels`). The suite loads `config/crd/bases` + `test/crds`. `validation_test.go` covers
+  every admission row of contracts/crds.md. The scaffolded per-controller tests were removed
+  (their empty specs now fail validation); T012/T013/T016 recreate them.
+- **T009**: `cmd/main.go`:
+  - flags `--shop-image`, `--shop-image-tag`, `--discord-guild-id`, `--discord-token-secret`;
+  - token Secret namespace from env `POD_NAMESPACE` (**T019: the chart must set it via the
+    downward API**);
+  - `Config.Validate` refuses an empty or `latest` image tag;
+  - Secret cache filtered on `app.kubernetes.io/managed-by=shop-operator`;
+  - `DetectDatabaseKinds` via discovery;
+  - Shop field indexes;
+  - leader election ID `shop-operator.shophub.io`; zap production mode.
+  - Reconciler structs carry `Config`/`DBKinds`/`APIReader`.
+  - Tests: config validation, discovery with and without the upstream CRDs (second envtest
+    API server), and indexes through a real manager.
+- **Deviation**: the scaffold pinned golangci-lint **v2.13.1**, which cannot read Go 1.27
+  export data (`export data version 5 is greater than maximum supported version 4`). Bumped to
+  **v2.15.0** in the `Makefile` and `.custom-gcl.yml`. The `logcheck` plugin was `version:
+  latest`; it is now pinned to **v0.11.0**.
+- **Checkpoint**: `make test` → 27/27 Ginkgo specs pass, `internal/controller` coverage 71.2%;
+  `make lint` → 0 issues; `go build ./cmd` OK. Nothing committed yet (shop-operator branch
+  `002-shop-operator` is local).
