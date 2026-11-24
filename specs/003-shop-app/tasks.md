@@ -227,13 +227,13 @@ shared contract suite, startup and admin authentication (research R8–R12).
 
 **Independent Test**: The API tests below on both stores; quickstart Scenario 6.
 
-- [ ] T017 [US2] Public endpoints in `shop/src/Shop.Api/Endpoints/Public.cs`:
+- [X] T017 [US2] Public endpoints in `shop/src/Shop.Api/Endpoints/Public.cs`:
   - `GET /api/shop`, `GET /api/items?q=&page=`;
   - `POST /api/orders` → 201 / 409 problems (nothing stored) / 400 / 503.
 
   `ApiTests.cs` covers US2 scenarios 1, 4, 5 and 6 on both stores: stock lowered by exactly the
   ordered quantities; `walletAddress` on the order equals `WALLET_ADDRESS`; no auth needed.
-- [ ] T018 [P] [US2] Angular storefront in `shop/src/Shop.Web/src/app/store/`:
+- [X] T018 [P] [US2] Angular storefront in `shop/src/Shop.Web/src/app/store/`:
   - shop name header, item list with search, unavailable state;
   - cart service on `localStorage["shop.cart"]` with quantities capped at stock;
   - cart page, checkout that maps 409 problems to "removed / price changed / only N left" with a
@@ -534,8 +534,8 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
 
 ### 2026-11-24 — Phase 4: User Story 1, admin manages items (T015–T016)
 
-- shop-spec#3 (branch `003-us1-admin`), CI `lint` and `test` green (127 tests in CI). **Not merged
-  yet**: waiting for the maintainer's approval.
+- shop-spec#3 (branch `003-us1-admin`), squash-merged as `e17a34f` after approval, with green CI
+  on the final commit `759de2b` (135 tests).
 - **T015** `Endpoints/Admin.cs` per contracts/http-api.md:
   - login 204/401/429 with `Retry-After`; logout; `me`, which also re-issues the XSRF cookie so
     a reloaded UI can make changes; password change;
@@ -566,6 +566,53 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - 0 secret hits in the logs; about 38 MiB.
 - Not done yet: clicking through the UI in a real browser (planned for the T024 quickstart run).
   The storefront parts of US1 scenarios 2–4 depend on the public endpoints (T017).
-- Known limit (FR-007, recorded for T025): sign-out deletes the cookie, but sessions are
-  stateless cookie tickets. A copied cookie stays valid until its 8 h expiry. Server-side
-  revocation would need a session stamp in the admin record.
+- ~~Known limit (FR-007)~~ **Resolved in PR #3** (maintainer request, commit `759de2b`):
+  - **Session version** on the admin record: `AdminRecord.SessionVersion`, PostgreSQL migration
+    `002_session_version.sql`, Redis field `sessionVersion`. It starts at 1.
+  - It is incremented atomically on sign-out (`BumpSessionVersionAsync`) and on password change
+    (in the same statement or Lua script that writes the hash). The bootstrap re-hash (generated
+    Secret replaced) increments it too.
+  - The session cookie carries the version as a claim. `OnValidatePrincipal` refuses older
+    versions on `/api/admin` requests (one store read per admin request; storefront and static
+    requests don't read the store).
+  - A password change signs the changing browser in again with the new version and a fresh XSRF
+    token.
+  - Sign-out ends **every** admin session, not just this browser's. That's acceptable with one
+    admin account.
+  - Tests on both stores:
+    - contract: starts at 1, only goes up, kept by lockout and bootstrap writes, 30 concurrent
+      bumps all counted;
+    - API: a stolen cookie is refused after sign-out and after a password change, on the same
+      and on a second app instance; signing in again works; the changing browser keeps working.
+  - data-model.md: `Admin.sessionVersion` added (entity table and PostgreSQL layout).
+  - Also fixed: a timing-dependent failure of the Redis log-leak test. With a wrong password the
+    first init attempt could outlast the test's 8 s startup timeout, so the cancellation skipped
+    the "waiting" log line. The initializer now logs the reason of a failed attempt even while
+    the start is being cancelled.
+
+### 2026-11-24 — Phase 5: User Story 2, customer places an order (T017–T018)
+
+- shop-spec#4 (branch `003-us2-storefront`). **Not merged yet**: waiting for the maintainer's
+  approval.
+- **T017** `Endpoints/Public.cs`:
+  - `GET /api/shop`; `GET /api/items` (same handler as the admin list);
+  - `POST /api/orders`: 201, 409 problems with `null` fields omitted, 400, 503 via the error
+    middleware. Up to 5 attempts on a reference collision.
+  - Prices come from the store (PR #2 fix).
+- `ApiTests.cs`: 5 more tests per store (16 per store in total), covering US2 scenarios 1, 4, 5
+  and 6, plus request validation. Scenario 6 uses two app instances on one store.
+- **T018** `src/app/store/`:
+  - `ShopApi` (shop name signal), `Cart` (localStorage `shop.cart`, capped at stock, malformed
+    entries dropped), `correctCart`/`orderProblems` (409 → messages plus the corrected cart);
+  - `Storefront`, `CartPage` (confirm and retry), `OrderPlaced` (`/orders/:reference`, total via
+    navigation state);
+  - header with the shop name and cart count.
+  - `ng test`: 15 tests (cart, problem mapping, header).
+- Real image on Redis 7.2.16 with a password:
+  - shop name and search;
+  - order 201, stored with the shop's wallet;
+  - a stale price → 409 with the current price;
+  - last piece 201 then 409;
+  - client routes 200;
+  - 0 secret hits in the logs; about 39 MiB.
+- 145 .NET tests pass locally with `CI=true`.
