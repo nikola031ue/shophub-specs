@@ -62,12 +62,21 @@ anyway: the Redis operator copies the Redis CR's labels (`managed-by`, `shophub.
 1. Ensure `<shop>-admin` exists before applying the Deployment. On a cache miss, confirm with
    `APIReader`. If it is really absent, create it with a new random value. A regenerated admin
    Secret is safe (research R11).
-2. `light` only: ensure `<shop>-redis-auth` exists before applying the Redis.
-   - If it is absent **and** `<shop>-redis` already exists, do not regenerate. Report `Ready=False`
-     with reason `RedisCredentialsLost`.
-   - Recovery: delete and recreate the Shop (README).
-   - **Planned for 0.2.1 (tasks.md T026)**: regenerate the Secret and restart the Redis with the
-     new password, keeping the PVC data, so the Shop no longer has to be deleted.
+2. `light` only: ensure the Redis password Secret exists before applying the Redis.
+   - The current name is the one the live Redis references in
+     `spec.kubernetesConfig.redisSecret.name`, or `<shop>-redis-auth` when there is no Redis yet.
+   - **0.2.0**: if it is absent **and** `<shop>-redis` already exists, do not regenerate. Report
+     `Ready=False` with reason `RedisCredentialsLost`; recovery is to recreate the Shop.
+   - **0.2.1 (T026)**: create a new password under the next name instead:
+     `<shop>-redis-auth` → `<shop>-redis-auth-2` → `-3` …; the old name is not reused.
+     - Point the Redis at it. The OT redis-operator rolls the Redis pod with the new password and
+       keeps the PVC and its AOF data (verified live with v0.27.0). No pod permissions are needed.
+     - The Redis CR and the PVC are never deleted for this.
+     - The Deployment's `REDIS_PASSWORD` `secretKeyRef` and `shophub.io/redis-secret-uid` follow
+       the new Secret, so the app pods roll.
+     - Light-shop readiness also waits for the Redis StatefulSet rollout (`observedGeneration`,
+       `currentRevision == updateRevision`): `DatabaseProvisioning` while it restarts.
+     - The info log names the missing and the new Secret, never a value.
 3. **0.1.0 upgrade**: a live `<shop>-redis` without `spec.storage` is deleted once, with an info
    log `recreating Redis without storage (0.1.0 upgrade)`, and recreated on the next reconcile.
    The Shop shows `DatabaseProvisioning` meanwhile.
@@ -78,7 +87,7 @@ anyway: the Redis operator copies the Redis CR's labels (`managed-by`, `shophub.
 
 | Kind | Reason | Ready | Meaning |
 |------|--------|-------|---------|
-| Shop | `RedisCredentialsLost` | False | Light shop's `<shop>-redis-auth` was deleted while its Redis exists; not regenerated |
+| Shop | `RedisCredentialsLost` | False | **0.2.0 only**: light shop's Redis password Secret was deleted while its Redis exists; not regenerated. Retired in 0.2.1, which regenerates it (rule 2) and reports `DatabaseProvisioning` while the Redis restarts |
 
 The operator emits no Kubernetes events (as in 0.1.0). No secret value ever appears in status,
 events or logs.

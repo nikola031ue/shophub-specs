@@ -23,10 +23,15 @@ in Phase 1, before any app work.
   `password`, 32 random chars) once and sets OT `Redis`
   `spec.kubernetesConfig.redisSecret: {name: <shop>-redis-auth, key: password}`. The app gets env
   `REDIS_PASSWORD` via `secretKeyRef`; `REDIS_URL` stays credential-free
-  (`redis://<shop>-redis.<ns>.svc:6379`). If the Secret disappears while the Redis exists, the
-  operator does **not** generate a new one. The Shop reports `Ready=False`, reason
+  (`redis://<shop>-redis.<ns>.svc:6379`). In 0.2.0, if the Secret disappears while the Redis
+  exists, the operator does **not** generate a new one. The Shop reports `Ready=False`, reason
   `RedisCredentialsLost`. Recovery is to delete and recreate the Shop (documented like 002's
   `KeyLost`).
+- **Update 2026-11-24, operator 0.2.1 (T026)**: a lost Secret is regenerated under the next name
+  (`<shop>-redis-auth-<n>`) and the Redis CR's `redisSecret.name` is switched to it. The OT
+  redis-operator v0.27.0 rolls the StatefulSet on that change and the PVC data survives (checked
+  live with a throwaway Redis in `qs`, then in the `lite` drill). This was the maintainer's
+  preferred path over pod-delete RBAC, which was not needed. `RedisCredentialsLost` is retired.
 - **Rationale**: `redisSecret` is in the vendored OT v1beta2 CRD (`test/crds/`). A new password
   would need a Redis restart, and the operator has no pod permissions. Refusing to drift is
   simpler and safe.

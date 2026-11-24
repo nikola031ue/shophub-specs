@@ -23,7 +23,8 @@ Expected: all pass. The new envtest specs cover:
 
 - admin Secret created, owned and referenced, and regenerated after deletion;
 - for light shops, Redis Secret, `redisSecret`, storage and `appendonly`;
-- `RedisCredentialsLost`;
+- a lost Redis password Secret regenerated under a new name, with the same Redis and storage
+  (0.2.1; `RedisCredentialsLost` in 0.2.0);
 - the 0.1.0 Redis recreate;
 - the sysctl, the UID annotations and the memory request/limit (128Mi/256Mi).
 
@@ -42,8 +43,13 @@ Expected: all pass. The new envtest specs cover:
    - `CONFIG GET appendonly` returns `yes`.
    - `std` database pod UID is unchanged.
    - The shop pods show memory request `128Mi` and limit `256Mi`.
-4. Delete the `lite-redis-auth` Secret. Expected: `lite` shows `RedisCredentialsLost` and no new
-   Secret appears. Recover by deleting and recreating `lite`.
+4. (0.2.1) Write a key with `redis-cli`, then delete the `lite-redis-auth` Secret. Expected, with
+   no hand change:
+   - `lite-redis-auth-2` appears, owned by `lite`, and `lite-redis` references it;
+   - the Redis pod is replaced; the Redis CR and PVC UIDs are unchanged and the key is still there;
+   - the `lite` pods roll to the new `REDIS_PASSWORD` reference and `lite` is Ready again;
+   - the operator log names both Secrets and contains no password.
+   (0.2.0 showed `RedisCredentialsLost` here and needed `lite` to be recreated.)
 
 ## Scenario 3 — App tests (both stores, SC-003, SC-004)
 

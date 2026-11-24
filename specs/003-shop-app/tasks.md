@@ -279,7 +279,7 @@ SC-003, SC-007–SC-009).
   - tag `v0.1.0` and confirm the `release` job pushed `ghcr.io/nikola031ue/shop:0.1.0` within
     15 min (SC-008);
   - **ask before** making the GHCR package public; verify an anonymous `docker pull`.
-- [ ] T026 Operator 0.2.1: self-healing Redis password (planned 2026-11-24; ID added after
+- [X] T026 Operator 0.2.1: self-healing Redis password (planned 2026-11-24; ID added after
   T025, runs here). Can start any time after Phase 1 and **must finish before T024**:
   - in `shop-operator/internal/controller/shop_controller.go` `prepareRedis`: when
     `<shop>-redis-auth` is missing and `<shop>-redis` exists, generate a new password Secret
@@ -677,3 +677,41 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - No `latest` tag (anonymous manifest request → 404).
   - Anonymous pull works after `docker logout ghcr.io` (registry token without credentials →
     manifest 200), so the package was already public; no visibility change was made.
+
+### 2026-11-24 — T026: operator 0.2.1, self-healing Redis password
+
+- **Restart path: new Secret name, no pod-delete RBAC.** Checked live first with a throwaway
+  Redis CR (`probe-redis`) in `qs` on redis-operator v0.27.0. Switching
+  `redisSecret.name` made the operator update the StatefulSet `secretKeyRef` and replace the pod
+  in about 4 s. A key written before was still there, and the old password was refused. The
+  probe was deleted afterwards.
+- shop-operator `prepareRedis`:
+  - the current Secret is the one the live Redis references;
+  - if it is missing, a new password goes under the next name (`<shop>-redis-auth-<n>`) and the
+    Redis is pointed at it;
+  - the Deployment env and the UID annotation follow it;
+  - the Redis CR and PVC are never deleted.
+- Light-shop readiness also waits for the Redis StatefulSet rollout. `RedisCredentialsLost` is
+  retired.
+- Tests:
+  - envtest: two successive regenerations, plus readiness during a rollout. 57 specs pass,
+    82.9 % coverage.
+  - Unit tests for name generations. `make lint` clean.
+- Releases:
+  - shop-operator-spec#5 squash-merged (`be0d4f2`), tag `v0.2.1`, image published;
+  - helm-charts-spec#7 squash-merged: chart `shop-operator` 0.3.1, CRDs and RBAC unchanged,
+    published and verified public;
+  - kube-state-spec#6 squash-merged (`6c8f73a`): `helm.yaml` → 0.3.1. GitHub showed the `layout`
+    job as stuck `in_progress` after all its steps succeeded; the PR was `CLEAN`, so it was
+    merged without a re-run.
+  - Each merge was approved by the maintainer.
+- `./bring-up.sh`: only `shop-operator` was upgraded; `std` and `lite` stayed Ready.
+- Live drill on `lite` in `qs`:
+  - wrote `drill:key`, then deleted `lite-redis-auth`;
+  - within about 4 s: `lite-redis-auth-2` owned by `lite`, Redis pod replaced, Redis CR and PVC
+    UIDs unchanged, StatefulSet revisions equal, key still there;
+  - the `lite` Deployment rolled to `lite-redis-auth-2` (annotation = new Secret UID); `lite`
+    Ready;
+  - the operator log names both Secrets; 0 password hits.
+- Docs updated: operator README (recovery section, env table), contracts/operator-0.2.0.md
+  rule 2 and the status table, research R2, quickstart Scenario 1 list and Scenario 2 step 4.
