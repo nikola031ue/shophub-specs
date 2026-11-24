@@ -42,7 +42,7 @@ has namespaced permissions only ([contracts/platform-phase1.md](contracts/platfo
 
 ### 1A — Entry point: Traefik + mkcert (release: kube-state PR)
 
-- [ ] T001 [US1] Add the Traefik release to kube-state (research R1):
+- [X] T001 [US1] Add the Traefik release to kube-state (research R1):
   - `kube-state/clusters/local/traefik/helm.yaml` (upstream OCI chart, exact pinned version) and
     `values.yaml` (namespace `traefik`, `LoadBalancer`, `externalTrafficPolicy: Local`, ports
     80/443, permanent `web` → `websecure` redirect, IngressClass `traefik` as default, default
@@ -63,6 +63,11 @@ has namespaced permissions only ([contracts/platform-phase1.md](contracts/platfo
   - check: `https://shophub.localhost` answers 404 from Traefik with a trusted certificate,
     `http://` redirects (quickstart Scenario 1 step 1); `traefik-proxies.traefik.svc.cluster.local`
     resolves to the Traefik pod IPs from a throwaway pod.
+
+**Progress 1A (2026-11-24)**: T001 done; T002 code and docs done (exit 7 + mkcert help via
+`cluster.yaml` `requiredSecrets`). kube-state PR #9 (branch `004-traefik`): all 7 checks green,
+including e2e on kind. Waiting for merge approval; then the Secret, `./bring-up.sh` and the live
+check close T002.
 
 **Checkpoint 1A**: entry point live; nothing else changed.
 

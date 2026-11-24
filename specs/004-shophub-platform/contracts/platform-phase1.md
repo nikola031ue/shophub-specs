@@ -7,12 +7,12 @@ Delivered and deployed before any ShopHub app work (spec Dependencies). CRDs
 
 | Item | Value |
 |------|-------|
-| Chart | upstream `oci://ghcr.io/traefik/helm/traefik`, exact version in `.github/upstream-charts.yaml` |
+| Chart | upstream `oci://ghcr.io/traefik/helm/traefik` **42.3.1** (Traefik v3.7.17), exact version in `.github/upstream-charts.yaml` |
 | Namespace | `traefik` |
 | Service | `LoadBalancer`, `externalTrafficPolicy: Local`, ports 80 (`web`) and 443 (`websecure`) |
 | Redirect | `web` → `websecure`, permanent |
 | IngressClass | `traefik`, default |
-| Default certificate | Secret `shophub-tls` (type `kubernetes.io/tls`) in `traefik`, created by hand from mkcert (README); `bring-up.sh` stops with the steps if it is missing |
+| Default certificate | Secret `shophub-tls` (type `kubernetes.io/tls`) in `traefik`, created by hand from mkcert (README). Listed in `cluster.yaml` `requiredSecrets`; `bring-up.sh` checks it exists before installing anything and otherwise prints the steps and exits **7** |
 | Hosts | `shophub.localhost` (ShopHub), `<shop>.shops.localhost` (shops) |
 | Proxy discovery | Headless Service `traefik-proxies` (`clusterIP: None`) selecting the Traefik pods, created through the chart's `extraObjects`. ShopHub resolves it by DNS to trust forwarded headers only from Traefik (research R7) |
 | Release order | `cnpg`, `redis-operator`, **`traefik`**, `shop-operator`, `shophub`, `shophub-discord` |
