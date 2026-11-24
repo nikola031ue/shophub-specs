@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-23
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Shop application (requirements 2.1, 2.2, 2.3 from ShopHub.md): one
 deployable web app, Angular frontend + .NET backend, one container image, deployed per shop by the

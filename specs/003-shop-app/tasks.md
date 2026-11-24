@@ -323,7 +323,7 @@ SC-003, SC-007–SC-009).
 
 ## Phase 8: Polish
 
-- [ ] T025 Self-review:
+- [X] T025 Self-review:
   - check the merged diffs in shop-operator, helm-charts, kube-state and shop against the plan's
     Constitution Check and Complexity Tracking;
   - `git grep` all repo histories for the admin/Redis passwords, DB URIs and other secret-looking
@@ -797,4 +797,4 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - PRs required (0 approvals), admins included, linear history, no force-push or deletion;
   - squash only (rebase and merge commits off), branches deleted on merge;
   - no required checks, because the repo has no CI.
-- Maintainer click-through of `shop:0.1.1` on local Postgres 18.7: pending.
+- Maintainer click-through of `shop:0.1.1` on local Postgres 18.7: approved. Review containers and the password file removed. T025 done; spec Status set to Implemented.
