@@ -35,7 +35,7 @@ Testcontainers (app) integration tests before merge. FR-025 names both databases
 automatic upgrade of 0.1.0 Shops ([contracts/operator-0.2.0.md](contracts/operator-0.2.0.md),
 research R1–R6 and R16).
 
-- [ ] T001 [P] Builders in `shop-operator/internal/resources/`:
+- [X] T001 [P] Builders in `shop-operator/internal/resources/`:
   - new `secrets.go`: the `<shop>-admin` and `<shop>-redis-auth` Secret builders with
     `crypto/rand` values (24 and 32 URL-safe chars), labels and names;
   - `resources.go`:
@@ -44,13 +44,12 @@ research R1–R6 and R16).
     - annotations `shophub.io/admin-secret-uid` and `shophub.io/redis-secret-uid`;
     - memory request `128Mi`, limit `256Mi`;
     - Redis `kubernetesConfig.redisSecret`, `storage` (1Gi RWO, `keepAfterDelete: false`,
-      `volumeClaimTemplate.metadata.labels` copied from the Shop's child labels, so the PVC
-      carries the owner/shop labels per Principle V) and
+      PVC labels come from the Redis CR via the Redis operator; see log) and
       `redisConfig.dynamicConfig: ["appendonly yes"]`.
 
   Unit tests in `internal/resources/resources_test.go`, including: no secret value in any
   annotation or plain env value; values differ per call.
-- [ ] T002 Shop reconciler in `shop-operator/internal/controller/shop_controller.go`, plus the
+- [X] T002 Shop reconciler in `shop-operator/internal/controller/shop_controller.go`, plus the
   reason `RedisCredentialsLost` in `common.go`:
   - ensure the admin Secret, with `APIReader` confirmation and regeneration when it is missing;
   - ensure the Redis Secret, never regenerated while `<shop>-redis` exists (→
@@ -60,7 +59,7 @@ research R1–R6 and R16).
 
   envtest specs in `shop_controller_test.go` cover each rule, the UID annotation changing after an
   admin Secret is recreated, and Secrets garbage-collected with the Shop (owner refs).
-- [ ] T003 Docs:
+- [X] T003 Docs:
   - `shop-operator/README.md`: env contract table, `RedisCredentialsLost` recovery (delete and
     recreate the Shop), note on the 0.1.0 Redis recreate;
   - a "0.2.0" note in `specs/002-shop-operator/contracts/crds.md` linking to
@@ -69,14 +68,14 @@ research R1–R6 and R16).
   Then push the branch and open the shop-operator-spec PR (maintainer asks to push), wait for green
   `lint` and `test`, **ask before merging**, tag `v0.2.0`, and verify an anonymous
   `docker pull ghcr.io/nikola031ue/shop-operator:0.2.0`.
-- [ ] T004 helm-charts:
+- [X] T004 helm-charts:
   - run `shop-operator/hack/sync-chart.sh` (expected: no CRD or RBAC diff);
   - `helm-charts/charts/shop-operator/Chart.yaml` → version `0.3.0`, appVersion `0.2.0`;
   - update `NOTES.txt` if it mentions env/Secrets.
 
   Open the helm-charts-spec PR, CI green, **ask before merging**, and confirm chart `0.3.0` is
   published and public.
-- [ ] T005 kube-state upgrade (quickstart Scenarios 1–2):
+- [X] T005 kube-state upgrade (quickstart Scenarios 1–2):
   - **before merging**, create test Shops `std` (standard) and `lite` (light) in `qs` on the
     0.1.0 operator and wait for Ready;
   - `kube-state/clusters/local/shop-operator/helm.yaml` → `0.3.0`; open the kube-state-spec PR,
@@ -370,3 +369,55 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
 - shophub-specs PR #1 (spec 002) was merged with a merge commit, `79cc773`, contrary to
   Constitution II / Requirement 5.1 linear history. The maintainer accepted it as a one-off; `main`
   is not rewritten. Merge commits are disabled in shophub-specs (squash and rebase only).
+
+### 2026-11-24 — Phase 1: operator 0.2.0 (T001–T005)
+
+- **T001/T002** (shop-operator-spec#4, squash `e884b21`):
+  - new `internal/resources/secrets.go`;
+  - `resources.go`: env refs, sysctl, UID annotations, memory 128Mi/256Mi, Redis `redisSecret`,
+    storage and AOF;
+  - `shop_controller.go`: `ensurePasswordSecret` and `prepareRedis` (0.1.0 recreate,
+    `RedisCredentialsLost`), `Owns(Secret)`, `APIReader`.
+  - Tests: new unit tests and 3 envtest specs (`shop_secrets_test.go`). 55/55 envtest specs and
+    all unit packages pass; `make lint` reports 0 issues; CI lint and test green. Generated RBAC
+    is unchanged.
+- **Deviation from T001 as written**: `storage.volumeClaimTemplate.metadata.labels` can't be set.
+  The OT CRD gives `metadata` no properties, so the API server prunes it (the T002 envtest caught
+  this). Removed from the builder. On the cluster, the Redis operator copies the Redis CR's labels
+  onto the PVC (`managed-by`, `shophub.io/owner`, `shophub.io/shop`), so analyze finding C1 is
+  met anyway.
+- **T003**:
+  - README: env contract, generated passwords, `RedisCredentialsLost` recovery, 0.1.0 upgrade;
+  - "Operator 0.2.0" note in `002/contracts/crds.md`;
+  - tag `v0.2.0`, release job green; anonymous pull OK, digest
+    `sha256:254e1485b64ba187c6b2d5539a28d4b439ccf0b1f18d7194979be69eab79f22a`.
+- **T004** (helm-charts-spec#6, `030615b`): `sync-chart.sh` changed only the generated-file
+  headers (no CRD or RBAC diff). Chart `shop-operator` `0.3.0` / appVersion `0.2.0`; publish and
+  verify-public green; anonymous `helm show chart` OK.
+- **T005** (kube-state-spec#5, `3909bfa`):
+  - Before the merge, `std` (standard) and `lite` (light) were Ready on operator 0.1.0 in `qs` in
+    31 s (shared Wallet `w`, DiscordChannel `qs-alerts`).
+  - `./bring-up.sh`: only `shop-operator` was upgraded (37 s). Both shops were Ready again on
+    0.2.0 about 46 s later, with no hand change.
+  - Operator log: `Created generated password Secret` for `std-admin`, `lite-admin` and
+    `lite-redis-auth`; `Recreating Redis without storage (0.1.0 upgrade)` for `lite-redis`, once.
+  - Secrets are owned by their Shop and carry the managed-by, owner and shop labels.
+  - Deployments: `ADMIN_PASSWORD` and `REDIS_PASSWORD` via `secretKeyRef`; `REDIS_URL` without
+    credentials; memory 128Mi/256Mi; sysctl present; UID annotations present.
+  - `std` database pod UID unchanged (`97b372bd…`).
+  - Redis:
+    - PVC `lite-redis-lite-redis-0` Bound, 1Gi, with the shop labels;
+    - `CONFIG GET appendonly` → `yes`;
+    - `redis-cli ping` without credentials → `NOAUTH Authentication required`, in the pod and via
+      the Service;
+    - with the password → `PONG`;
+    - the container exports `REDISCLI_AUTH`, so a plain `redis-cli` in the pod looks
+      unauthenticated; test with `env -u REDISCLI_AUTH`.
+  - Extra check (hand change in `qs`): a key written before deleting the `lite-redis-0` pod was
+    still there afterwards.
+  - Drill: deleting `lite-redis-auth` → `RedisCredentialsLost` with the recovery hint, and no new
+    Secret. Recovery (delete and recreate `lite`) removed the old Redis and PVC and made `lite`
+    Ready in 36 s.
+  - Leak scan: the three passwords appear 0 times in the operator log (1 h), the Shop/Redis YAML
+    and the `qs` events.
+  - `std` and `lite` are kept in `qs` for Phase 7.

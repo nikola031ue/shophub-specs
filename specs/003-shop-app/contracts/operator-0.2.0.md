@@ -45,14 +45,17 @@ spec:
   storage:
     keepAfterDelete: false
     volumeClaimTemplate:
-      metadata:
-        labels: <the Shop's child labels>   # managed-by + shophub.io/owner + shophub.io/shop (Principle V)
       spec:
         accessModes: [ReadWriteOnce]
         resources: {requests: {storage: 1Gi}}
   redisConfig:
     dynamicConfig: ["appendonly yes"]
 ```
+
+**PVC labels**: the OT CRD declares `volumeClaimTemplate.metadata` as an object without
+properties, so the API server prunes labels set there (found in T002 envtest). This isn't needed
+anyway: the Redis operator copies the Redis CR's labels (`managed-by`, `shophub.io/owner`,
+`shophub.io/shop`) onto the PVC. That was verified on the cluster in T005.
 
 ## Reconcile rules added
 
