@@ -773,3 +773,28 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
     recovery it is `<shop>-redis-auth-<n>`.
   - LOW: shophub-specs `main` has no branch protection and allows rebase merges. Merge commits
     are off, as the plan requires.
+
+### 2026-11-24 — T025 follow-up: maintainer decisions and shop 0.1.1
+
+- **Findings 1–3**: recorded as one spec 004 task (ingress plus trusted forwarded headers,
+  per-IP lockout, per-client rate limit, `Secure` cookie). See plan.md Deferred follow-ups D-1
+  and the spec.md Dependencies.
+- **Findings 4–6** fixed:
+  - shop-spec#7 (`31742b1`): security headers on every response, tested on both stores
+    (156 tests); the release job refuses tags not on `main`; README Redis Secret name.
+  - shop-operator-spec#6 (`1dae035`): the same release guard; CI only, no operator release.
+  - Both squash-merged after approval.
+- shop `v0.1.1`: tag pushed at 13:43:21 UTC; the release finished 13:45:16 (**1 min 55 s**);
+  the new on-main step passed. `ghcr.io/nikola031ue/shop:0.1.1`, digest `sha256:47d7b9b1…`,
+  anonymously pullable.
+  - Not exercised: the guard's failure path (a tag on a commit that is not on `main`).
+- kube-state-spec#8 (`bb29dc1`): `shopImage.tag` set to 0.1.1, 7/7 checks green, merged after
+  approval.
+  - `./bring-up.sh`: only `shop-operator` was upgraded; it now runs with
+    `--shop-image-tag=0.1.1`.
+  - No Shops exist on the cluster (`qs` was deleted in T024), so no shop pods rolled.
+- **Finding 7**: shophub-specs `main` is now protected like the other repos:
+  - PRs required (0 approvals), admins included, linear history, no force-push or deletion;
+  - squash only (rebase and merge commits off), branches deleted on merge;
+  - no required checks, because the repo has no CI.
+- Maintainer click-through of `shop:0.1.1` on local Postgres 18.7: pending.

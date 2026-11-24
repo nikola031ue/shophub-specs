@@ -353,6 +353,9 @@ scenarios on each; try to connect to the light shop's database without credentia
   `PendingPayment` orders and returns their stock, abandoned orders permanently tie up stock.
   003 limits the exposure: `POST /api/orders` is rate-limited per client IP, and one order line
   is capped at 1,000 pieces.
+- **Spec 004 (ingress) must add trusted forwarded headers** and then make the admin lockout per
+  client IP, key the order rate limit on the real client and force `Secure` cookies
+  ([plan.md](plan.md) Deferred follow-ups, D-1).
 - Released 002 platform: shop-operator, CNPG and the Redis operator installed via kube-state.
 - GitHub repository `shop-spec` (local folder `shop`), currently containing only an initial
   commit and no branch protection.

@@ -190,3 +190,12 @@ first. Commits happen at the end of each phase, without pushing, per the standin
 | Merge commit `79cc773` on shophub-specs `main` (Principle II linear history) | Spec 002 PR #1 was merged with a merge commit by mistake | Rewriting `main` needs a force-push on a shared branch. Accepted as a one-off; merge commits are now disabled in shophub-specs |
 | Operator ClusterRole keeps cluster-wide Secret access (002 R-1) | 0.2.0 adds more Secrets of the same kind but no new rules | Narrowing it is planned in spec 004 together with the backend's namespaces |
 | One-time data loss for 0.1.0 light shops when their Redis is recreated (research R4) | Storage can't be added to an existing StatefulSet | 0.1.0 light shops run only the nginx placeholder and have no persistent data, so nothing real is lost |
+
+## Deferred follow-ups
+
+Findings from the T025 self-review that this feature records but does not fix (findings 4–6 were
+fixed in shop 0.1.1; finding 7 by protecting shophub-specs `main`):
+
+| ID | Finding | Deferred to |
+|----|---------|-------------|
+| D-1 | **One task: ingress with trusted forwarded headers.** The shop app trusts no forwarded headers and sees only the TCP peer, so behind the spec 004 ingress: (1) admin lockout is shop-wide, and anyone who can reach `/api/admin/login` can keep the admin locked out (5 wrong tries per 15 min); (2) the order rate limit keys every customer on the ingress address (10 orders/min per replica for the whole shop), which, together with stock that is not released for unpaid orders (spec 005), makes stock exhaustion cheap; (3) the session cookie (`SecurePolicy.SameAsRequest`) is not marked `Secure` when TLS ends at the ingress. When 004 adds the ingress and TLS: configure forwarded headers with the ingress as the only trusted proxy, then make the lockout per client IP (keeping a shop-wide ceiling), key the rate limit on the real client, and force `Secure` cookies | spec 004 |
