@@ -94,7 +94,7 @@ change. App work may start.
 **Purpose**: Scaffold, image and CI before any feature code ([contracts/delivery.md](contracts/delivery.md),
 research R7, R13, R14).
 
-- [ ] T006 Scaffold `shop/`:
+- [X] T006 Scaffold `shop/`:
   - `Shop.slnx`, `global.json` (.NET 10 SDK pinned), `Directory.Build.props` (nullable, warnings
     as errors, `InvariantGlobalization`, workstation non-concurrent GC) and
     `Directory.Packages.props` (exact versions, lock files);
@@ -103,7 +103,7 @@ research R7, R13, R14).
   - `src/Shop.Web`: Angular standalone app with router, HttpClient with XSRF, angular-eslint;
     build output to `src/Shop.Api/wwwroot`;
   - `.gitignore`, `.dockerignore`, `.editorconfig`.
-- [ ] T007 [P] `shop/Dockerfile`, multi-stage:
+- [X] T007 [P] `shop/Dockerfile`, multi-stage:
   - Node LTS builds Angular, the .NET SDK publishes, the runtime is
     `aspnet:10.0-noble-chiseled`, non-root;
   - every base image pinned by digest; `ASPNETCORE_HTTP_PORTS=80`; OCI labels.
@@ -442,3 +442,25 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - Leak scan: the three passwords appear 0 times in the operator log (1 h), the Shop/Redis YAML
     and the `qs` events.
   - `std` and `lite` are kept in `qs` for Phase 7.
+
+### 2026-11-24 — Phase 2: app setup (T006–T008, in progress)
+
+- Before starting: memory request 128Mi / limit 256Mi confirmed in operator 0.2.0
+  (`internal/resources/resources.go`) and on the live `std`/`lite` Deployments; nothing for 0.2.1.
+  The self-healing Redis password is planned as T026 (operator 0.2.1, before T024).
+- **T006** (`shop` branch `003-scaffold`, commit `9f71729`, local):
+  - .NET SDK `10.0.401` in `global.json`, which also opts into Microsoft.Testing.Platform. The
+    .NET 10 SDK refuses VSTest with xUnit v3, so `Microsoft.NET.Test.Sdk` and
+    `xunit.runner.visualstudio` are not used; tests run with `dotnet test --solution Shop.slnx`.
+  - Central package versions (exact), lock files, locked restore when `CI=true`.
+  - `Shop.Api`: static files with `index.html` fallback, `/healthz`; one smoke test.
+  - `Shop.Web`: Angular 22.3.0 (exact versions, `save-exact`), router, `HttpClient` with
+    `XSRF-TOKEN`/`X-XSRF-TOKEN`, angular-eslint 22.8.0, build output to `Shop.Api/wwwroot`
+    (gitignored). `npm audit --omit=dev`: 0; 7 moderate in dev-only tooling (`minimatch`).
+- **T007**: Dockerfile with `node:24-bookworm-slim`, `sdk:10.0.401-noble` and
+  `aspnet:10.0-noble-chiseled`, all by digest; runs as UID 1654; `ASPNETCORE_HTTP_PORTS=80`;
+  OCI labels. Local run: `/` and `/admin/items` return `index.html`, `/healthz` 200, about 20 MiB
+  RSS, image 182 MB. No database check yet: the app has no store code until Phase 3.
+- **T008**: `ci.yaml` with `lint`, `test` and `release` (SemVer, no overwrite, no `latest`),
+  actions pinned by SHA (adds `setup-dotnet` v6.1.0 and `setup-node` v7.1.0). All four checks pass
+  locally. Pending: push, PR, branch protection and merge, each asked first.
