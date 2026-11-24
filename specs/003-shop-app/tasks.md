@@ -268,12 +268,12 @@ SC-003, SC-007–SC-009).
 
 **Independent Test**: quickstart Scenarios 3–9 on the local cluster.
 
-- [ ] T021 [US4] `shop/README.md`:
+- [X] T021 [US4] `shop/README.md`:
   - local run against Testcontainers or Docker Postgres/Redis;
   - the settings table (from contracts/operator-0.2.0.md);
   - tests, release steps, the admin-password flow and the lockout;
   - "do not paste the admin password anywhere".
-- [ ] T022 [US4] Release:
+- [X] T022 [US4] Release:
   - push the branch when the maintainer asks, open the shop-spec PR, CI green, **ask before
     merging**;
   - tag `v0.1.0` and confirm the `release` job pushed `ghcr.io/nikola031ue/shop:0.1.0` within
@@ -641,8 +641,8 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
 
 ### 2026-11-24 — Phase 6: User Story 3, admin lists orders (T019–T020)
 
-- shop-spec#5 (branch `003-us3-orders`), CI `lint` and `test` green (154 tests). **Not merged
-  yet**: waiting for the maintainer's approval.
+- shop-spec#5 (branch `003-us3-orders`), CI `lint` and `test` green (154 tests). Squash-merged
+  as `23de8b5` after the maintainer's approval.
 - **T019** `GET /api/admin/orders?page=`: 20 per page, newest first (ties broken by reference),
   lines exactly as stored; 400 for `page < 1`; 401 without a session.
 - `ApiTests.cs`: 3 more tests per store (20 per store in total) for US3 scenarios 1–3. The
@@ -661,3 +661,19 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - the 10th order request in a minute → 429 with `Retry-After: 60` (the earlier 400 counted
     towards the limit, as documented);
   - 0 secret hits in the logs.
+
+### 2026-11-24 — Phase 7: README and release 0.1.0 (T021–T022)
+
+- Browser click-through by the maintainer before the release: image built from `main`
+  (`23de8b5`) on Postgres 18.7 in Docker, admin password read from a local file only. Approved;
+  the review containers and the password file were removed afterwards.
+- **T021** `shop/README.md`: settings table, admin-password flow with the "do not paste" warning,
+  sessions and lockout, order rules, local run, image run, tests, layout, releases.
+  shop-spec#6, CI green (154 tests), squash-merged as `ff4c9f3` after approval.
+- **T022** tag `v0.1.0` on `ff4c9f3`, pushed 12:11:19 UTC. Release run 45391109635: `lint`,
+  `test`, then `release` finished 12:14:01 UTC, **2 min 42 s** after the tag (SC-008: ≤ 15 min).
+  - `ghcr.io/nikola031ue/shop:0.1.0`, digest
+    `sha256:ad30c64d0f85ce0cfd94ce5291cb42bff9a0690f2645595865d5f175cd025bf9`, with provenance.
+  - No `latest` tag (anonymous manifest request → 404).
+  - Anonymous pull works after `docker logout ghcr.io` (registry token without credentials →
+    manifest 200), so the package was already public; no visibility change was made.
