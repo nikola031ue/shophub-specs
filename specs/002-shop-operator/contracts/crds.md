@@ -75,3 +75,11 @@ No secret value (private key, webhook URL, token) may appear in status, events o
 - Manual edits to owned children are reverted on the next reconcile (≤ 30 s while watched).
 - Operator restarts never duplicate Discord channels (topic `shophub-uid:<uid>` lookup) and
   never regenerate an existing wallet key.
+
+## Operator 0.2.0 (spec 003)
+
+The CRDs are unchanged. Operator 0.2.0 adds a generated admin password Secret per Shop
+(`ADMIN_PASSWORD`). For `light` Shops it adds a Redis password Secret (`REDIS_PASSWORD`) plus
+Redis persistence. It also adds the reason `RedisCredentialsLost`, a port-80 sysctl and memory
+128Mi/256Mi. 0.1.0 Shops are upgraded automatically. Details:
+[003 contracts/operator-0.2.0.md](../../003-shop-app/contracts/operator-0.2.0.md).
