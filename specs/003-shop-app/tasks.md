@@ -285,9 +285,16 @@ SC-003, SC-007–SC-009).
     `<shop>-redis-auth` is missing and `<shop>-redis` exists, generate a new password Secret
     instead of reporting `RedisCredentialsLost`. Restart the Redis so it starts with the new
     password, keeping the PVC and its AOF data.
-    - Design choice to settle in the PR: delete pod `<shop>-redis-0` (needs a new RBAC rule,
-      pods `delete`) or another restart path the OT operator honours. Never delete the Redis CR
-      or the PVC.
+    - Restart path (maintainer, 2026-11-24): **prefer** switching the Redis CR's
+      `kubernetesConfig.redisSecret.name` to a **new Secret name** (for example a generation
+      suffix, `<shop>-redis-auth-<n>`) over adding pod-delete RBAC. First verify, in envtest
+      where possible and live in `qs`, that the OT redis-operator rolls the Redis StatefulSet
+      on that change and that the data on the PVC survives. Only if it does **not** roll out,
+      fall back to deleting pod `<shop>-redis-0`, with RBAC scoped as narrowly as possible
+      (pods `delete` only, no wider verbs). Record which path was taken and why. Never delete
+      the Redis CR or the PVC.
+    - With a new Secret name, the env `REDIS_PASSWORD` `secretKeyRef` and the old Secret's
+      cleanup must follow it.
     - The shop pods roll on their own through the `shophub.io/redis-secret-uid` annotation.
   - Retire or redefine `ReasonRedisCredentialsLost` (Ready=False only while the Redis restarts).
     Log the Secret name only.
