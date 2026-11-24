@@ -126,11 +126,20 @@ stable release that is at least two weeks old.
   - A per-session id in the cookie, checked against `owner_sessions`, so sign-out ends only that
     session and a copied cookie stops working.
   - Lockout counted per (owner, client address): 5 failures in 15 min.
-  - The same `ForwardedHeaders` setup as shops, so the client address is real.
+  - Forwarded headers trusted **only from Traefik**, stricter than shops: ShopHub resolves the
+    headless Service `traefik-proxies.traefik.svc.cluster.local` (setting `TRUSTED_PROXY_HOST`)
+    by DNS every 30 s and honours `X-Forwarded-For`/`-Proto` only when the TCP peer is one of
+    those pod IPs, `ForwardLimit = 1`. DNS needs no Kubernetes permission, so FR-017 is
+    unchanged. A failed lookup trusts nobody (fail closed: the lockout falls back to the peer
+    address, which is stricter, never weaker).
+  - Enforced as well by a NetworkPolicy in the `shophub` chart: the ShopHub app pods accept TCP
+    8080 only from the Traefik pods (Docker Desktop enforces policies, R5).
   - Registration answers 409 "email already registered". It is unavoidable for a sign-up form,
     and it is rate-limited per client address (10 per hour).
 - **Alternatives**: ASP.NET Core Identity with EF Core (an ORM and more tables than needed);
-  OIDC provider (out of scope; no external IdP).
+  OIDC provider (out of scope; no external IdP). For the proxy list: the pod CIDR as for shops
+  (any pod could forge the header to ShopHub without a policy); reading Traefik pods through the
+  Kubernetes API (needs RBAC outside `shops`, against FR-017).
 
 ## R8 — Shop record and reconciler (FR-014, FR-015)
 

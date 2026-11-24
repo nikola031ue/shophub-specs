@@ -205,19 +205,21 @@ shophub/                            # new code, layout in contracts/delivery.md
 
 ## Delivery Notes (solo, ~25 tasks)
 
-Estimated breakdown. `/speckit-tasks` will finalise it.
+Final breakdown from [tasks.md](tasks.md):
 
-| Phase | Content | ≈ Tasks |
-|-------|---------|---------|
-| 1 Platform | Traefik release, TLS precheck and docs (kube-state PR); operator Ingress + status URL; NetworkPolicy + `TRUSTED_PROXY_CIDRS`; namespaced RBAC + watch-namespace + envtest; operator `v0.3.0` + chart 0.4.0 + kube-state PR; shop forwarded headers, `Secure` cookie, per-client limit, `adminPasswordChanged`; shop per-address lockout + ceiling on both stores; shop `v0.2.0` + kube-state PR + live Phase 1 checks (quickstart 1–3) | 8 |
-| 2 ShopHub setup | Scaffold (solution, Angular, Dockerfile, CI); branch protection (ask first) | 2 |
-| 3 Foundation | Settings, startup, DB migrations, Testcontainers harness; accounts (register, sign-in/out, lockout, sessions, XSRF); `IKubeGateway` with the k3s suite | 3 |
-| 4 US2 accounts UI | Angular register / sign-in / guard | 1 |
-| 5 US3 create and open | Shop records + reconciler (apply, status mapping, put back, idempotency); panel create/list/admin-password API with isolation tests; Angular list, create, open, show password | 3 |
-| 6 US4/US5 change and delete | Change (availability, wallet switch) and delete API with tests; Angular edit and delete dialog | 2 |
-| 7 Release | `shophub` chart; release `v0.1.0` (package public: ask first) + kube-state PR; quickstart 4–9 on the cluster | 3 |
-| 8 Polish | `shophub` README; self-review and secrets sweep | 2 |
-| | **Total** | **≈ 24** |
+| Phase | Content | Tasks |
+|-------|---------|-------|
+| 1A Entry point | Traefik release (with headless `traefik-proxies` Service), TLS precheck and docs, rollout | 2 |
+| 1B Operator | Ingress/NetworkPolicy builders; controller, flags, namespaced RBAC, envtest; chart 0.4.0; release `v0.3.0` + rollout + live checks | 4 |
+| 1C Shop | Forwarded headers, `Secure` cookie, per-client limit; per-address lockout + ceiling (both stores); `adminPasswordChanged`; release `v0.2.0` + rollout + live checks | 4 |
+| 2 ShopHub setup | Scaffold; CI + branch protection (ask first) | 2 |
+| 3 Foundation | Settings, forwarded headers (Traefik only), schema, Postgres harness; `IKubeGateway` with the k3s suite | 2 |
+| 4 US2 | Accounts backend; Angular auth | 2 |
+| 5 US3 | Shop records; reconciler; shop endpoints + isolation suite; Angular shops | 4 |
+| 6 US4 / 7 US5 | Change (availability, wallet switch); delete | 2 |
+| 8 Release | `shophub` chart; release `v0.1.0` + rollout; live validation (quickstart 4–9) | 3 |
+| 9 Polish | README, self-review, spec status | 1 |
+| | **Total** | **26** |
 
 Within budget (~25, hard stop at ~30), so no split is needed.
 

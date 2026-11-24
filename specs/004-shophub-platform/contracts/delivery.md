@@ -29,7 +29,7 @@ Settings (environment only):
 | `DATABASE_URL` | From CNPG Secret `shophub-db-app`, key `uri` |
 | `SHOPS_NAMESPACE` | `shops` |
 | `SHOP_DOMAIN` | `shops.localhost` (for display only; URLs come from Shop status) |
-| `TRUSTED_PROXY_CIDRS` | As for shops |
+| `TRUSTED_PROXY_HOST` | DNS name whose A records are the only trusted proxies: `traefik-proxies.traefik.svc.cluster.local`. Resolved every 30 s; unset or failed lookup means no proxy is trusted (research R7) |
 | `MAX_SHOPS_PER_OWNER` | default 5 |
 
 Kubernetes access comes from the in-cluster ServiceAccount token. A kubeconfig is used only in
@@ -56,10 +56,11 @@ Actions pinned by SHA, `permissions: {}` at the top. Branch protection (asked fi
 | `serviceaccount.yaml` | `shophub` |
 | `rbac.yaml` (new) | Role + RoleBinding **in `shopsNamespace` only**: `shophub.io` `shops`, `wallets`, `discordchannels`: `get list watch create patch delete` (server-side apply needs `create` and `patch`); `""` `secrets`: `get` only (used only for `<id>-admin`). No ClusterRole |
 | `database.yaml` (new) | CNPG `Cluster` `shophub-db`, 1 instance, 1Gi |
+| `networkpolicy.yaml` (new) | Selects the ShopHub app pods only: ingress TCP 8080 only from pods with the Traefik labels in namespace `traefik`. Database pods are not selected, so the app still reaches them |
 | `hpa.yaml` | kept, disabled by default |
 | `NOTES.txt`, `_helpers.tpl` | updated |
 
-Values: `image.tag`, `host`, `shopsNamespace`, `shopDomain`, `trustedProxyCIDRs`,
+Values: `image.tag`, `host`, `shopsNamespace`, `shopDomain`, `trustedProxyHost`,
 `maxShopsPerOwner`. No secrets.
 
 The shop admin password is fetched over the in-cluster Service of the shop

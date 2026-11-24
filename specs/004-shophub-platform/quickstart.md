@@ -71,8 +71,14 @@ After the `shophub` kube-state PR: run `./bring-up.sh`. Expected:
 - `kubectl auth can-i --list -n shops --as system:serviceaccount:shophub:shophub` lists only the
   three kinds and Secret `get`.
 - In every other namespace it lists nothing beyond discovery.
+- From a throwaway pod in `default`, `curl http://shophub.shophub.svc` fails (NetworkPolicy). A
+  sign-in through Traefik with a forged `X-Forwarded-For` is recorded with the real client
+  address in `signin_failures`.
 
-From an empty cluster (optional full run): bring-up through to a working ShopHub in under 15 min.
+**Required full run (FR-028, SC-009)**: reset the Docker Desktop cluster, recreate the hand-made
+Secrets (TLS, Discord token), run `./bring-up.sh` and time it to a working
+`https://shophub.localhost`. Expected: under 15 min, no other manual step. Also record the time
+from pushing the `v0.1.0` tag to a pullable image (under 15 min).
 
 ## Scenario 5 — Accounts (US2, FR-001–FR-005)
 

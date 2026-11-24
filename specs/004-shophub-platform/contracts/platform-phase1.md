@@ -14,6 +14,7 @@ Delivered and deployed before any ShopHub app work (spec Dependencies). CRDs
 | IngressClass | `traefik`, default |
 | Default certificate | Secret `shophub-tls` (type `kubernetes.io/tls`) in `traefik`, created by hand from mkcert (README); `bring-up.sh` stops with the steps if it is missing |
 | Hosts | `shophub.localhost` (ShopHub), `<shop>.shops.localhost` (shops) |
+| Proxy discovery | Headless Service `traefik-proxies` (`clusterIP: None`) selecting the Traefik pods, created through the chart's `extraObjects`. ShopHub resolves it by DNS to trust forwarded headers only from Traefik (research R7) |
 | Release order | `cnpg`, `redis-operator`, **`traefik`**, `shop-operator`, `shophub`, `shophub-discord` |
 
 ## shop-operator 0.3.0 (chart `shop-operator` 0.4.0)

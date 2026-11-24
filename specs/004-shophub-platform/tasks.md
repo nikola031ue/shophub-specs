@@ -49,8 +49,11 @@ has namespaced permissions only ([contracts/platform-phase1.md](contracts/platfo
     certificate from Secret `shophub-tls`);
   - `kube-state/clusters/local/cluster.yaml` `releaseOrder`: `traefik` after `redis-operator`,
     before `shop-operator`;
+  - headless Service `traefik-proxies` (`clusterIP: None`, selecting the Traefik pods) through the
+    chart's `extraObjects`, so ShopHub can resolve the Traefik pod IPs by DNS
+    (contracts/platform-phase1.md, research R7);
   - `kube-state/.github/upstream-charts.yaml`: allowlist entry at the exact version;
-  - bats cases for the new release in `kube-state/tests/`.
+  - bats cases for the new release in `kube-state/.github/tests/*.bats`.
 - [ ] T002 [US1] TLS precheck and docs, then roll out 1A:
   - `kube-state/bring-up.sh`: before the `traefik` release, stop with the mkcert steps when
     Secret `shophub-tls` is missing in `traefik` (no secret value printed);
@@ -58,7 +61,8 @@ has namespaced permissions only ([contracts/platform-phase1.md](contracts/platfo
     `*.shops.localhost`, the hand-made namespace and Secret (quickstart Prerequisites);
   - PR, CI green, **ask before merge**; the maintainer creates the Secret; `./bring-up.sh`;
   - check: `https://shophub.localhost` answers 404 from Traefik with a trusted certificate,
-    `http://` redirects (quickstart Scenario 1 step 1).
+    `http://` redirects (quickstart Scenario 1 step 1); `traefik-proxies.traefik.svc.cluster.local`
+    resolves to the Traefik pod IPs from a throwaway pod.
 
 **Checkpoint 1A**: entry point live; nothing else changed.
 
@@ -153,8 +157,13 @@ the operator).
 ## Phase 3: Foundation (blocks US2–US5)
 
 - [ ] T013 Settings, startup and schema in `shophub/src/ShopHub.Api/`:
-  - `Settings.cs`: `DATABASE_URL`, `SHOPS_NAMESPACE`, `SHOP_DOMAIN`, `TRUSTED_PROXY_CIDRS`,
-    `MAX_SHOPS_PER_OWNER` (contracts/delivery.md); `ForwardedHeaders.cs` as in shop;
+  - `Settings.cs`: `DATABASE_URL`, `SHOPS_NAMESPACE`, `SHOP_DOMAIN`, `TRUSTED_PROXY_HOST`,
+    `MAX_SHOPS_PER_OWNER` (contracts/delivery.md);
+  - `ForwardedHeaders.cs`: trusted proxies limited to Traefik (research R7): the IPs of
+    `TRUSTED_PROXY_HOST` resolved by DNS every 30 s; `X-Forwarded-For`/`-Proto` honoured only
+    when the TCP peer is one of them, `ForwardLimit = 1`; unset or lookup failure means trust
+    nobody (fail closed); unit tests with a fake resolver (trusted peer, other pod-network peer,
+    failed lookup, address list change);
   - `Storage/Scripts/001_initial.sql` with the tables of data-model.md: `owners` (`owners.id`,
     `owners.email`, `owners.email_normalized` UNIQUE, `owners.password_hash`), `owner_sessions`
     (`owner_sessions.expires_at`), `signin_failures` (`signin_failures.email_normalized`,
@@ -169,7 +178,8 @@ the operator).
   - Testcontainers k3s fixture in `tests/ShopHub.Api.Tests/Integration/K3s/` loading the CRDs from
     the pinned `shop-operator` chart; the delivery.md Role applied to a test ServiceAccount;
   - tests: apply/delete/status round trip; CRD validation errors surface; the ServiceAccount is
-    refused Secrets outside `shops` and kinds it doesn't own (SC-007 for ShopHub).
+    refused Secrets outside `shops`, kinds it doesn't own, and creating or changing a Secret or a
+    Deployment inside `shops` (SC-007 for ShopHub).
 
 **Checkpoint**: app starts against PostgreSQL; gateway proven against a real API server.
 
@@ -188,9 +198,11 @@ the operator).
   - sessions per `owner_sessions` (8 h, row checked on every request, deleted on sign-out);
   - lockout per `signin_failures` `(email_normalized, address)`, 429 + `Retry-After`;
     registration limit 10/hour per client address;
-  - XSRF cookie/header, Data-Protection keys in `data_protection_keys`;
-  - tests (unit + Postgres + `WebApplicationFactory`): FR-001–FR-004, replayed cookie after
-    sign-out → 401, lockout from one address does not block another.
+  - session cookie `Secure`, `HttpOnly`, `SameSite=Strict` (FR-004); XSRF cookie/header;
+    Data-Protection keys in `data_protection_keys`;
+  - tests (unit + Postgres + `WebApplicationFactory`): FR-001–FR-004 including the three cookie
+    flags, replayed cookie after sign-out → 401, lockout from one address does not block
+    another.
 - [ ] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
   sign-in pages, XSRF interceptor, route guard, sign-out; `ng test`.
 
@@ -217,9 +229,13 @@ the operator).
   - applies DiscordChannel `<id>`, Wallet `<id>-w<generation>` (from `shops.wallet_generation`)
     and Shop `<id>` with the labels and specs of data-model.md "Cluster resources";
   - puts back missing resources (drift); finishes an interrupted create;
+  - works by name from its records only: it never lists-and-prunes by label, so resources
+    without a record are never touched (FR-015);
   - panel state per data-model.md "Panel state mapping" (`shops.state`, `shops.updated_at`) and
     reason texts per panel-api.md;
-  - k3s tests: create, drift repair, interrupted create, repeated apply is a no-op.
+  - k3s tests: create; drift repair; interrupted create at each step (after the DiscordChannel,
+    after the Wallet, after the Shop) finishes with no orphan (SC-010); repeated apply is a
+    no-op; a hand-made Shop carrying ShopHub labels but no record survives every pass.
 - [ ] T019 [US3] Shop endpoints in `shophub/src/ShopHub.Api/Endpoints/Shops.cs`:
   - `GET /api/shops`, `POST /api/shops`, `GET /api/shops/{id}`,
     `POST /api/shops/{id}/admin-password` (status read over the in-cluster Service first; 409
@@ -227,9 +243,14 @@ the operator).
   - 503 when the database or Kubernetes API is down;
   - API tests plus `tests/ShopHub.Api.Tests/Integration/Isolation/` suite: owner B gets 404 for
     every endpoint on owner A's shop, and A's shops are absent from B's list (FR-018, SC-004).
-- [ ] T020 [P] [US3] Angular shops in `shophub/src/ShopHub.Web/src/app/shops/`: list with polling
-  and states, create form with field errors and the limit message, open in a new tab, "Show shop
-  admin password"; `ng test`.
+- [ ] T020 [P] [US3] Angular shops in `shophub/src/ShopHub.Web/src/app/shops/`:
+  - list with states and reasons, refreshed at least every 10 s while any shop is not ready
+    (FR-008);
+  - create form with field errors and the limit message;
+  - open in a new tab with `target="_blank" rel="noopener noreferrer"` (FR-010);
+  - "Show shop admin password" with the hint to change it at the first shop sign-in (FR-016),
+    and the "password was changed" message;
+  - `ng test` covering the refresh interval, the `rel` attribute and the hint.
 
 **Checkpoint (MVP)**: register → create → open works locally against k3s/fake gateway.
 
@@ -255,8 +276,8 @@ the operator).
 - [ ] T022 [US5] `DELETE /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular delete
   dialog (`src/app/shops/delete`):
   - `confirmName` must match (trimmed, exact case) else 400; `shops.state` → `Deleting` (202);
-  - reconciler deletes Shop, Wallet and DiscordChannel, removes the row once all are gone;
-    repeat-safe;
+  - reconciler deletes Shop, Wallet and DiscordChannel by name from the record (never by label
+    selector), removes the row once all are gone; repeat-safe;
   - k3s, API and isolation tests for DELETE.
 
 ---
@@ -265,16 +286,19 @@ the operator).
 
 - [ ] T023 Chart `helm-charts/charts/shophub` 0.2.0 per contracts/delivery.md (deployment,
   service, ingress, serviceaccount, `rbac.yaml` Role + RoleBinding in `shopsNamespace` only,
-  `database.yaml` CNPG `shophub-db`, hpa disabled, NOTES, helpers); helm-charts PR, chart
-  `install` job green, **ask before merge**.
+  `database.yaml` CNPG `shophub-db`, `networkpolicy.yaml` (ShopHub app pods accept TCP 8080 only
+  from the Traefik pods in namespace `traefik`; the database pods stay reachable from the app),
+  value `trustedProxyHost`, hpa disabled, NOTES, helpers); helm-charts PR, chart `install` job
+  green, **ask before merge**.
 - [ ] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
   - publish chart 0.2.0 (appVersion 0.1.0);
   - kube-state PR `clusters/local/shophub/{helm.yaml,values.yaml}` → **ask before merge** →
-    `./bring-up.sh`; quickstart Scenario 4.
-- [ ] T025 Live validation: quickstart Scenarios 5–9 on the cluster; record timings (SC-001–SC-003)
-  and the secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
+    `./bring-up.sh`; quickstart Scenario 4; record the tag-to-pullable-image time (SC-009).
+- [ ] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
+  15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
+  secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
 
 ---
 
