@@ -27,7 +27,8 @@ Two deliveries, strictly in order.
   - Chart `shop-operator` 0.4.0 also creates the `shops` namespace.
 - **shop 0.2.0**:
   - forwarded headers trusted only from `TRUSTED_PROXY_CIDRS`;
-  - admin lockout per client address, with a shop-wide ceiling of 50 failures per 15 min;
+  - admin lockout per (account, client address), with a shop-wide ceiling of 50 failures per
+    15 min; rate limits stay per client address;
   - order rate limit per real client;
   - session cookie always `Secure`;
   - `GET /api/shop` gains `adminPasswordChanged` for the FR-016 hand-off (R5, R6).
@@ -87,7 +88,7 @@ Two deliveries, strictly in order.
 **Testing**:
 
 - Operator: envtest, extended for Ingress, NetworkPolicy and namespace scoping.
-- shop: existing suites on both stores, plus forwarded-header, per-address lockout and
+- shop: existing suites on both stores, plus forwarded-header, per-(account, address) lockout and
   `Secure`-cookie tests.
 - shophub:
   - unit tests;
@@ -187,7 +188,7 @@ helm-charts/charts/shophub/         # 0.2.0: real app (replaces placeholder)
 
 shop/                               # 0.2.0 (Phase 1)
 ├── src/Shop.Api/{Program,Settings,ForwardedHeaders}.cs, Auth/AdminAuth.cs, Endpoints/Public.cs
-└── Storage/ (lockout per address + ceiling, both stores), tests
+└── Storage/ (lockout per (account, address) + ceiling, both stores), tests
 
 shophub/                            # new code, layout in contracts/delivery.md
 ├── src/ShopHub.Api/  (Program, Settings, Auth/, Accounts/, Shops/{ShopRecords, Reconciler, KubeGateway}, Endpoints/)
@@ -211,7 +212,7 @@ Final breakdown from [tasks.md](tasks.md):
 |-------|---------|-------|
 | 1A Entry point | Traefik release (with headless `traefik-proxies` Service), TLS precheck and docs, rollout | 2 |
 | 1B Operator | Ingress/NetworkPolicy builders; controller, flags, namespaced RBAC, envtest; chart 0.4.0; release `v0.3.0` + rollout + live checks | 4 |
-| 1C Shop | Forwarded headers, `Secure` cookie, per-client limit; per-address lockout + ceiling (both stores); `adminPasswordChanged`; release `v0.2.0` + rollout + live checks | 4 |
+| 1C Shop | Forwarded headers, `Secure` cookie, per-client limit; per-(account, address) lockout + ceiling (both stores); `adminPasswordChanged`; release `v0.2.0` + rollout + live checks | 4 |
 | 2 ShopHub setup | Scaffold; CI + branch protection (ask first) | 2 |
 | 3 Foundation | Settings, forwarded headers (Traefik only), schema, Postgres harness; `IKubeGateway` with the k3s suite | 2 |
 | 4 US2 | Accounts backend; Angular auth | 2 |

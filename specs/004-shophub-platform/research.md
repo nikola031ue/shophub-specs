@@ -102,9 +102,14 @@ stable release that is at least two weeks old.
     node (`desktop-control-plane` is `172.18.0.2`), so the check passes.
   - **Limitation**: that proxy opens a new connection to Traefik, so locally Traefik sees the
     proxy's address, not the Windows client's. `externalTrafficPolicy: Local` doesn't change this.
-    Every local client therefore shares one address, and per-address lockout and rate limiting
-    (R6) act as one shared bucket on Docker Desktop. This is accepted for local use; on a cluster
-    whose load balancer keeps the source address, the same code keys on the real client. The
+    Every local client therefore shares one address. Rate limits (orders, registration) stay per
+    client address and so act as one shared bucket on Docker Desktop.
+  - **Why this is acceptable**: lockouts are keyed by **(account, client address)**, not by the
+    address alone (shop R6, ShopHub R7). Failures against one account from the shared address
+    don't lock any other account, so one local attacker can't lock out every owner. The shared
+    rate-limit bucket only matters with many local clients, and the maintainer is the only one.
+    On a cluster whose load balancer keeps the source address, the same code keys on the real
+    client. The
     trust chain itself (only Traefik's `X-Forwarded-For` is honoured, forged headers are ignored)
     is unaffected.
 - **Alternatives**: a shared-secret header added by a Traefik middleware (a secret in a
@@ -113,11 +118,14 @@ stable release that is at least two weeks old.
 ## R6 — shop 0.2.0 protections (FR-023–FR-025, FR-016)
 
 - **Decision**:
-  - **Lockout**: the existing fixed-window counter, kept per scope: one scope per client address
-    (5 failures in 15 min lock that address for 15 min) and one shop-wide scope `*` (**50**
-    failures in 15 min lock every address for 15 min). Both live in the shop's database
+  - **Lockout**: the existing fixed-window counter, kept per scope: one scope per **(account,
+    client address)** (5 failures in 15 min lock that account from that address for 15 min) and
+    one shop-wide scope `*` (**50** failures in 15 min lock every address for 15 min). The shop
+    has one admin account (`admin`), but the key carries the account so a second account would
+    never share a counter, matching ShopHub (R7), and the shared local address (R5) stays harmless. Both live in the shop's database
     (data-model.md) and are covered by the existing store contract suite.
-  - **Rate limit**: unchanged code. The partition key is `RemoteIpAddress`, which the forwarded
+  - **Rate limit**: unchanged code, still per client address only. The partition key is
+    `RemoteIpAddress`, which the forwarded
     headers middleware now sets to the real client.
   - **Cookie**: `CookieSecurePolicy.Always` for the session and the anti-forgery cookies.
     Integration tests use an `https://localhost` base address.

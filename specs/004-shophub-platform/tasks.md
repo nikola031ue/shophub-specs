@@ -137,15 +137,19 @@ the operator).
   - order rate limit keyed by the resulting client address (`Endpoints/Public.cs`);
   - tests: header honoured from a trusted peer, ignored from an untrusted one; two addresses get
     separate order limits; `Secure` flag set.
-- [ ] T008 [P] [US1] Per-address admin lockout with shop-wide ceiling (FR-023), both stores, per
-  data-model.md "shop app 0.2.0 storage additions":
-  - `shop/src/Shop.Api/Storage/Scripts/003_lockout_per_address.sql` (`admin_lockouts`);
-  - Redis `failed_signin.lua` updating `shop:admin:lock:<address>` and `shop:admin:lock:*`
-    atomically, 15 min expiry;
-  - `Auth/AdminAuth.cs`: refuse while either scope is locked (429 + `Retry-After`); success resets
-    only its address scope;
-  - tests on PostgreSQL and Redis: 5 failures lock one address only; another address signs in;
-    50 failures across addresses lock all; window expiry.
+- [ ] T008 [P] [US1] Admin lockout per (account, client address) with shop-wide ceiling (FR-023),
+  both stores, per data-model.md "shop app 0.2.0 storage additions":
+  - `shop/src/Shop.Api/Storage/Scripts/003_lockout_per_account_address.sql` (`admin_lockouts`,
+    PK `(account, address)`);
+  - Redis `failed_signin.lua` updating `shop:admin:lock:<account>:<address>` and
+    `shop:admin:lock:*` atomically, 15 min expiry;
+  - store lockout API takes `(account, address)`; `Auth/AdminAuth.cs` passes account `admin`;
+    refuse while either scope is locked (429 + `Retry-After`); success resets only its
+    (account, address) scope; the order rate limit stays per address (T007);
+  - tests on PostgreSQL and Redis: 5 failures lock that account from that address only; the same
+    account from another address signs in; **5 failures for account `admin` from address A don't
+    lock a different account from A** (store contract test with a second account name, since the
+    app has one admin); 50 failures across addresses lock all; window expiry.
 - [ ] T009 [P] [US1] `GET /api/shop` returns `{name, adminPasswordChanged}` (false while the
   operator-generated password is in use, true after a change) in `shop/src/Shop.Api/Endpoints/`,
   with tests on both stores; README updated for T007–T009.
@@ -187,7 +191,8 @@ the operator).
   - `Storage/Scripts/001_initial.sql` with the tables of data-model.md: `owners` (`owners.id`,
     `owners.email`, `owners.email_normalized` UNIQUE, `owners.password_hash`), `owner_sessions`
     (`owner_sessions.expires_at`), `signin_failures` (`signin_failures.email_normalized`,
-    `signin_failures.address`, `signin_failures.at`), `shops` (`shops.id`, `shops.owner_id`,
+    `signin_failures.address`, `signin_failures.at`; index on `(email_normalized, address, at)`:
+    the lockout key is (account, client address), never the address alone), `shops` (`shops.id`, `shops.owner_id`,
     `shops.display_name`, `shops.display_name_key` with UNIQUE `(owner_id, display_name_key)`,
     `shops.availability`, `shops.database`, `shops.wallet_address`, `shops.wallet_generation`,
     `shops.state`, `shops.updated_at`), `data_protection_keys`; migration runner as in shop;
@@ -216,13 +221,14 @@ the operator).
   - validation per data-model.md `owners` (email, password length); `PasswordHasher` into
     `owners.password_hash`; duplicate by `owners.email_normalized` → 409;
   - sessions per `owner_sessions` (8 h, row checked on every request, deleted on sign-out);
-  - lockout per `signin_failures` `(email_normalized, address)`, 429 + `Retry-After`;
-    registration limit 10/hour per client address;
+  - lockout keyed by (account, client address): `signin_failures` `(email_normalized, address)`,
+    429 + `Retry-After`; rate limits stay per client address: registration 10/hour;
   - session cookie `Secure`, `HttpOnly`, `SameSite=Strict` (FR-004); XSRF cookie/header;
     Data-Protection keys in `data_protection_keys`;
   - tests (unit + Postgres + `WebApplicationFactory`): FR-001–FR-004 including the three cookie
     flags, replayed cookie after sign-out → 401, lockout from one address does not block
-    another.
+    the same account from another, and **5 failures for account X from address A don't lock
+    account Y from address A**.
 - [ ] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
   sign-in pages, XSRF interceptor, route guard, sign-out; `ng test`.
 

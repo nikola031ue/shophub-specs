@@ -64,7 +64,7 @@ No ClusterRole or ClusterRoleBinding remains in the chart. Shops in other namesp
 | Change | Behaviour |
 |--------|-----------|
 | `TRUSTED_PROXY_CIDRS` (optional, comma-separated CIDRs) | `X-Forwarded-For` and `X-Forwarded-Proto` are honoured only when the TCP peer is inside one of these networks; `ForwardLimit = 1`. Unset or empty means forwarded headers are ignored. Invalid CIDRs stop the start with a message naming the variable |
-| Admin lockout | Per client address 5 failures / 15 min, plus a shop-wide ceiling of 50 failures / 15 min (data-model.md). 429 with `Retry-After` |
+| Admin lockout | Per (account, client address) 5 failures / 15 min, plus a shop-wide ceiling of 50 failures / 15 min (data-model.md). 429 with `Retry-After` |
 | Order rate limit | Unchanged rule (10/min); the key is now the real client address |
 | Cookies | Session and anti-forgery cookies always `Secure` |
 | `GET /api/shop` | `{name, adminPasswordChanged}`; `adminPasswordChanged` is false while the operator-generated password is still the admin password |
@@ -72,7 +72,8 @@ No ClusterRole or ClusterRoleBinding remains in the chart. Shops in other namesp
 Tests on both stores:
 
 - forwarded header honoured from a trusted peer and ignored from an untrusted one;
-- per-address lockout plus the ceiling;
+- per-(account, address) lockout plus the ceiling; failures for one account from an address
+  don't lock a different account from the same address;
 - two client addresses each get their own order limit;
 - `Secure` flag set;
 - `adminPasswordChanged` flips after a password change.

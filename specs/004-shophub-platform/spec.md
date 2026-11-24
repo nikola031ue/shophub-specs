@@ -54,8 +54,8 @@ Delivery order (maintainer): User Story 1 is **Phase 1**. It is released and dep
 
 Each shop is reachable from a browser at its own HTTPS address. ShopHub itself also has its own
 HTTPS address. Because traffic now arrives through a shared entry point, the shop app learns each
-visitor's real address from that entry point, and only from it. It uses that address to lock out
-attackers per address instead of locking out the whole shop, and to limit orders per customer
+visitor's real address from that entry point, and only from it. It uses that address, together with the
+account, to lock out attackers instead of locking out the whole shop, and to limit orders per customer
 instead of per entry point. Session cookies are sent over HTTPS only. In the same phase, the
 shop-operator loses its ability to read Secrets everywhere in the cluster.
 
@@ -65,8 +65,8 @@ exists, so they are fixed before it is used. The deferred 002 finding R-1 (clust
 access) is a least-privilege gap (Principle V) that grows with every shop.
 
 **Independent Test**: With the platform deployed from `kube-state`, the maintainer creates two
-test Shops in the shops namespace (as in 002/003). Each is reachable at its own HTTPS address. Failed sign-ins from one
-client address do not block the right password from another. Two customers on different
+test Shops in the shops namespace (as in 002/003). Each is reachable at its own HTTPS address. Failed sign-ins for an account from one
+client address do not block the right password from another address. Two customers on different
 addresses can each place orders up to the limit. The operator's identity is refused when it tries
 to read a Secret outside the namespaces it is allowed.
 
@@ -341,8 +341,11 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
   deleted. The CRDs MUST NOT change for this.
 - **FR-022**: The shop app MUST take the client address from forwarded headers only when the
   request comes from the platform entry point. Otherwise it uses the direct peer address.
-- **FR-023**: The shop app's admin lockout MUST apply per client address: 5 failed sign-ins in 15
-  minutes lock that address for 15 minutes. A shop-wide ceiling MUST remain against distributed
+- **FR-023**: The shop app's admin lockout MUST apply per (account, client address): 5 failed
+  sign-ins for an account from one address in 15 minutes lock that account from that address for
+  15 minutes; other accounts and other addresses are not locked. The shop app has a single admin
+  account today, so the account part is fixed, but the key includes it. Rate limits stay per client
+  address (FR-024). A shop-wide ceiling MUST remain against distributed
   guessing: 50 failed sign-ins across all addresses in 15 minutes lock the whole shop for 15
   minutes.
 - **FR-024**: The shop app's order limit MUST be per real client address (10 orders per minute by
@@ -455,7 +458,7 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
   - the shared shops namespace as platform state (FR-018);
   - **shop-operator 0.3.0**: per-Shop routing and address (FR-021), plus a namespaced Role in the
     shops namespace instead of the ClusterRole (FR-026, 002 R-1). CRDs unchanged;
-  - **shop 0.2.0**: trusted forwarded headers, per-address lockout with a shop-wide ceiling,
+  - **shop 0.2.0**: trusted forwarded headers, per-(account, address) lockout with a shop-wide ceiling,
     per-client order limit, always-Secure cookie (FR-022–FR-025, 003 D-1);
   - chart and `kube-state` updates for each.
 - **shop-operator 0.2.1 CRDs** (`shophub.io/v1alpha1` Shop, Wallet, DiscordChannel) are used

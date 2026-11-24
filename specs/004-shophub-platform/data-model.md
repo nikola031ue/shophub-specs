@@ -105,17 +105,18 @@ Shop `status.url` becomes `https://<shop>.<shop-domain>`. The Deployment gets en
 
 | Store | Layout |
 |-------|--------|
-| PostgreSQL | Table `admin_lockouts (scope text PK, failed_count int, failed_window_start timestamptz, locked_until timestamptz)`. `scope` is a client address, or `*` for the shop-wide ceiling. Migration `003_lockout_per_address.sql` creates it; the admin row's `failed_count`, `failed_window_start` and `locked_until` (001) stop being used |
-| Redis | Hashes `shop:admin:lock:<address>` and `shop:admin:lock:*` with the same three fields; `failed_signin.lua` updates both scopes atomically. Keys expire 15 min after their last change |
+| PostgreSQL | Table `admin_lockouts (account text, address text, failed_count int, failed_window_start timestamptz, locked_until timestamptz, PRIMARY KEY (account, address))`. `account` is the signing-in account (`admin`, the shop's single admin account) and `address` the real client address; the row `('*', '*')` is the shop-wide ceiling. Migration `003_lockout_per_account_address.sql` creates it; the admin row's `failed_count`, `failed_window_start` and `locked_until` (001) stop being used |
+| Redis | Hashes `shop:admin:lock:<account>:<address>` and `shop:admin:lock:*` with the same three fields; `failed_signin.lua` updates both scopes atomically. Keys expire 15 min after their last change |
 
 Same fixed-window semantics as 003, applied per scope:
 
-- A failure increments both the address scope (limit **5**) and `*` (limit **50**), each within
-  a 15 min window.
+- A failure increments both the (account, address) scope (limit **5**) and `*` (limit **50**),
+  each within a 15 min window.
 - Reaching a limit sets that scope's `locked_until = now + 15 min`.
-- A sign-in is refused (429, `Retry-After`) while its address scope or `*` is locked, even with
-  the right password.
-- A successful sign-in resets only its address scope (FR-023).
+- A sign-in is refused (429, `Retry-After`) while its (account, address) scope or `*` is locked,
+  even with the right password.
+- A successful sign-in resets only its (account, address) scope (FR-023).
+- The order rate limit is not stored here and stays keyed by client address only (FR-024).
 
 ## Panel state mapping (FR-008, R10)
 
