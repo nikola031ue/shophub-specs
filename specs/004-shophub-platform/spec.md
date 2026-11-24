@@ -354,8 +354,10 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
 - **FR-026**: The shop-operator's cluster-wide permissions MUST be replaced by **a namespaced Role
   in the shops namespace** covering the kinds it manages there, Secrets included (closes 002
   R-1). Outside that namespace it MAY keep only what it needs in its own namespace: leader
-  election, and reading the one Discord token Secret by name. It MUST watch only the shops
-  namespace. Shops in any other namespace are not reconciled.
+  election, reading the Discord token Secret, and managing the platform alerts DiscordChannel
+  and its webhook Secret, which move into the operator's namespace. It MUST reconcile Shops and
+  Wallets only in the shops namespace, and DiscordChannels only there and in its own namespace.
+  Resources in any other namespace are not reconciled.
 
 **ShopHub chart and rollout (Requirement 3.3; Requirements 5.1–5.3)**
 

@@ -27,7 +27,8 @@ Delivered and deployed before any ShopHub app work (spec Dependencies). CRDs
 | `--shop-domain` | `shopDomain` | `shops.localhost` | Host suffix: `<shop>.<shop-domain>` |
 | `--ingress-class` | `ingressClassName` | `traefik` | `spec.ingressClassName` of every Shop Ingress |
 | `--trusted-proxy-cidrs` | `trustedProxyCIDRs` | `10.244.0.0/16` | Passed to the app as `TRUSTED_PROXY_CIDRS` |
-| – | `shophubNamespace` | `shophub` | Second namespace allowed by the Shop NetworkPolicy |
+| `--ingress-namespace` | `ingressNamespace` | `traefik` | First namespace allowed by the Shop NetworkPolicy |
+| `--shophub-namespace` | `shophubNamespace` | `shophub` | Second namespace allowed by the Shop NetworkPolicy |
 
 ### Reconcile additions (per Shop, owned children, server-side apply)
 
@@ -45,17 +46,28 @@ Existing 0.2.x Shops are updated by reconciliation alone, if any exist in `shops
 | Object | Namespace | Rules |
 |--------|-----------|-------|
 | Role `shop-operator-manager` | `shops` | the 0.2.1 rules (Shops, Wallets, DiscordChannels incl. status and finalizers; Deployments; Services; Secrets; CNPG Clusters; Redis; StatefulSets read), plus `networking.k8s.io` `ingresses` and `networkpolicies` (`get list watch create update patch delete`) |
-| Role `shop-operator-discord-token` | operator namespace | `get` on Secret `resourceNames: [<discord token Secret>]` |
+| Role `shop-operator-platform-channels` | operator namespace | `discordchannels` (`get list watch update patch`, status, finalizers) and `secrets` (`get list watch create update patch delete`): the platform alerts channel, its webhook Secret and the Discord token Secret (research R4) |
 | Role `…-leader-election` | operator namespace | unchanged |
 | Namespace `shops` | – | created by the chart, label `shophub.io/shops: "true"` |
 
-No ClusterRole or ClusterRoleBinding remains in the chart. Shops in other namespaces are ignored.
+No ClusterRole or ClusterRoleBinding remains in the chart. Shops and Wallets are reconciled only
+in `shops`; DiscordChannels in `shops` and in the operator namespace. Everything else is ignored.
+
+### Platform alerts channel move (kube-state)
+
+The `shophub-discord` release moves from namespace `shophub` to `shop-operator-system`
+(`clusters/local/shophub-discord/helm.yaml` `targetNamespace`). The chart itself is unchanged.
+A Helm release can't change namespace, so the move is an uninstall and a reinstall, done in the
+order in quickstart Scenario 1 (step 1): the old CR is deleted while operator 0.2.1 still
+watches `shophub`, so its finalizer removes the old Discord channel. Bring-up then installs the
+release in the new namespace, and 0.3.0 creates a new channel there.
 
 ### Acceptance (envtest + live)
 
 - The Ingress and NetworkPolicy are created, owned, and restored after a manual edit. Status `url`
   is HTTPS.
-- A Shop in a namespace other than `shops` gets no children and no status.
+- A Shop in a namespace other than `shops` gets no children and no status; a DiscordChannel in
+  the operator namespace is reconciled; one in any other namespace is not.
 - Live: `kubectl auth can-i get secrets -n <ns> --as system:serviceaccount:shop-operator-system:shop-operator`
   answers **no** for every namespace except `shops` (and the token Secret by name).
 

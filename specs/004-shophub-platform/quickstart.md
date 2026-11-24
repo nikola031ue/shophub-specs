@@ -19,9 +19,28 @@ Run on Docker Desktop Kubernetes (context `docker-desktop`) after each rollout s
 
 ## Scenario 1 — Entry point and shop addresses (US1 scenarios 1–2, FR-020, FR-021)
 
-1. Merge the kube-state PRs for `traefik` and `shop-operator` 0.4.0 and run `./bring-up.sh`.
-   Expected: `traefik` installed and `shop-operator` upgraded; nothing else changes. Without
-   `shophub-tls`, bring-up stops and prints the steps above.
+1. Merge the kube-state PR for `traefik` and run `./bring-up.sh` (done in 1A). Without
+   `shophub-tls`, bring-up stops and prints the steps above. Then roll out `shop-operator` 0.4.0
+   in this exact order. It moves the platform alerts channel to the operator namespace
+   (research R4, Complexity Tracking):
+
+   ```bash
+   # a. Operator 0.2.1 must still be running: it removes the old Discord channel (finalizer).
+   kubectl -n shop-operator-system get deploy shop-operator \
+     -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'      # ...:0.2.1
+   kubectl delete discordchannel platform-alerts -n shophub --wait --timeout=2m
+   kubectl get discordchannel,secret -n shophub | grep platform-alerts   # expected: nothing
+   # b. Remove the release from its old namespace (its only object is already gone).
+   helm uninstall shophub-discord -n shophub
+   # c. Only now merge the kube-state PR (shop-operator 0.4.0, shophub-discord targetNamespace
+   #    shop-operator-system), pull, and run bring-up.
+   ./bring-up.sh
+   ```
+
+   Expected: `shop-operator` upgraded and `shophub-discord` installed (in
+   `shop-operator-system`); everything else unchanged. Then
+   `kubectl get dch platform-alerts -n shop-operator-system` turns Ready with a new webhook
+   Secret, and a new `platform-alerts` channel appears in Discord. The old one is gone.
 2. The maintainer creates two test Shops in `shops` (hand change, Complexity Tracking), each with
    a registered Wallet and a DiscordChannel.
 3. Expected:
@@ -41,8 +60,9 @@ kubectl auth can-i get secret/shop-operator-discord -n shop-operator-system --as
 kubectl get clusterrolebinding -o wide | grep shop-operator   # expected: nothing
 ```
 
-Expected: `yes` only for `shops` and for the token Secret by name. No ClusterRoleBinding. A Shop
-created in another namespace gets no children.
+Expected: `yes` only for `shops` and `shop-operator-system` (the platform alerts channel's
+webhook Secret and the token Secret, research R4). No ClusterRoleBinding. A Shop created in
+another namespace gets no children.
 
 NetworkPolicy check: from a throwaway pod in `default`, `curl http://<shop>.shops.svc` must fail.
 From the entry point and from namespace `shophub` it works. (The local CNI enforces policies; research R5.)

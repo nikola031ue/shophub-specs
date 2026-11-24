@@ -62,14 +62,22 @@ stable release that is at least two weeks old.
     today's rules: shops/wallets/discordchannels (+status/finalizers), deployments, services,
     secrets, CNPG clusters, Redis, statefulsets (read), plus **ingresses** and
     **networkpolicies**.
-  - A second **Role in the operator's own namespace** grants `get` on the one Discord token
-    Secret by `resourceNames`. Leader election is unchanged.
-  - The manager's cache is restricted to `shops` (`cache.Options.DefaultNamespaces`).
-  - The Discord token is read with the uncached API reader (a namespaced `get` by name), so no
-    list/watch on Secrets outside `shops` is ever needed.
-  - The kubebuilder `+kubebuilder:rbac` markers switch to `namespace=shops`, and
-    `hack/sync-chart.sh` writes Roles instead of the ClusterRole. The namespace is templated from
-    the chart value.
+  - A second **Role in the operator's own namespace** (`…-platform-channels`) covers
+    DiscordChannels (with status and finalizers) and Secrets there. Leader election is unchanged.
+  - **Platform alerts channel (decided 2026-11-24 during 1B)**: the `platform-alerts`
+    DiscordChannel from the `shophub-discord` chart lived in `shophub`. Watching only `shops`
+    would have left it unreconciled: a lost webhook Secret would never come back, and a delete
+    would hang on its finalizer. It moves to the operator's namespace (`shop-operator-system`),
+    which the operator already needs. Rejected: moving it into `shops`, where ShopHub's Role
+    could change or delete it; watching `shophub` too, which would give the operator Secret
+    access next to ShopHub's database credentials.
+  - The manager's cache: every kind in `shops` only (`cache.Options.DefaultNamespaces`);
+    DiscordChannels and operator-labelled Secrets also in the operator's namespace
+    (`ByObject.Namespaces`). Shops and Wallets there are not cached or reconciled.
+  - The Discord token is still read with the uncached API reader.
+  - The manager markers stay as they are, and `hack/sync-chart.sh` writes their rules into a
+    Role in `.Values.shopsNamespace`. The own-namespace rules come from markers with
+    `namespace=system`; the script writes them into the release namespace.
   - Database kinds are still detected through discovery, which needs no RBAC beyond
     `system:discovery`.
 - **Rationale**: closes R-1 exactly as the spec asks. No wildcard; nothing cluster-wide.

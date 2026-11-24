@@ -21,9 +21,10 @@ Two deliveries, strictly in order.
     `https://…`).
   - Per Shop, an owned `NetworkPolicy`: only the entry point and ShopHub may reach the app.
   - A new env `TRUSTED_PROXY_CIDRS` for the app.
-  - The operator watches **only the `shops` namespace**. The manager ClusterRole is replaced by a
-    namespaced **Role in `shops`**, plus a by-name read of the Discord token in its own namespace
-    (closes 002 R-1, R4).
+  - The operator reconciles Shops and Wallets **only in the `shops` namespace**. The manager
+    ClusterRole is replaced by a namespaced **Role in `shops`**, plus a Role in its own namespace
+    for the Discord token and the platform alerts DiscordChannel, which moves there from
+    `shophub` (closes 002 R-1, R4).
   - Chart `shop-operator` 0.4.0 also creates the `shops` namespace.
 - **shop 0.2.0**:
   - forwarded headers trusted only from `TRUSTED_PROXY_CIDRS`;
@@ -235,4 +236,5 @@ first. Commits happen at the end of each phase; pushes only when asked.
 | New tool **mkcert** on the maintainer's machine; TLS Secret `shophub-tls` created by hand in the `traefik` namespace (Principle V hand change, Principle VI secret) | FR-020: HTTPS the browser trusts, so `Secure` cookies work locally. The CA key must never be in git or the cluster | cert-manager + CA issuer: another operator, plus a chart for the issuer, and the browser still needs a one-time trust step. Traefik's default self-signed cert: a browser warning on every host. The Secret follows the documented pattern of the hand-created Discord token Secret; bring-up checks it exists |
 | Hand changes for checks (Principle V): Phase 1 test Shops, Wallets and DiscordChannels in `shops`, deleted afterwards (quickstart 1–3); deleting one ShopHub-made Shop to prove drift repair (quickstart 8); the `traefik` namespace created by hand so the TLS Secret can exist before the release | ShopHub, the only allowed writer, does not exist until Phase 2; drift repair can only be shown by causing drift | Waiting leaves the operator and shop changes unverifiable on a real cluster. Automated tests use envtest and Testcontainers |
 | Per-Shop observability not provisioned; the `shophub` chart doesn't use prometheus-stack yet (Principle VII, Requirement 3.3) | Carried over from 002/003. Observability is spec 006 | Wiring dashboards before the stack exists targets nothing; labels stay in place for 006 |
+| Hand migration (Principle V): delete DiscordChannel `platform-alerts` in `shophub` and `helm uninstall shophub-discord -n shophub` before the 1B bring-up (quickstart Scenario 1 step 1) | The alerts channel moves to the operator namespace (R4). A Helm release can't change namespace, and the old CR's finalizer must run while operator 0.2.1 still watches `shophub`; after 0.3.0 it would hang forever | bring-up.sh can't uninstall releases (by design, it never deletes). Changing only `targetNamespace` would leave the old release and its CR behind, and the finalizer would hang. One-time, scripted in quickstart, verified at the 1B live check |
 | Forwarded headers trusted from the pod CIDR, guarded by a NetworkPolicy (R5) | The app can't know the entry point's pod IPs. The NetworkPolicy makes sure only the entry point (and ShopHub) can reach a shop pod at all | A shared-secret header from Traefik would put a secret into a non-Secret resource. **Verified 2026-11-24:** Docker Desktop Kubernetes (v1.36.1, kind-based, CNI `kindnetd` v20260528) enforces NetworkPolicies. In a throwaway namespace, a deny-all Ingress policy blocked pod-to-pod HTTP; a `podSelector` allow rule let only the labelled client through; removing the policies restored access. `namespaceSelector` rules (as the Shop policy uses) are confirmed live in quickstart Scenario 2 |

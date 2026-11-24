@@ -88,7 +88,7 @@ Two notes for quickstart users on Windows:
 
 ### 1B — shop-operator `v0.3.0` (release: tag → chart 0.4.0 → kube-state)
 
-- [ ] T003 [P] [US1] Resource builders in `shop-operator/internal/resources/`:
+- [X] T003 [P] [US1] Resource builders in `shop-operator/internal/resources/`:
   - new `ingress.go`: `Ingress <shop>` per data-model.md "Derived resources" (class, host
     `<shop>.<shop-domain>`, path `/` Prefix → Service `<shop>:80`, no `tls` block);
   - new `networkpolicy.go`: `NetworkPolicy <shop>` selecting `app.kubernetes.io/instance=<shop>`,
@@ -96,32 +96,44 @@ Two notes for quickstart users on Windows:
   - `resources.go`: `ShopParams` gains domain, ingress class, trusted CIDRs, ShopHub namespace;
     Deployment env `TRUSTED_PROXY_CIDRS`; status URL helper `https://<shop>.<shop-domain>`;
   - unit tests in `shop-operator/internal/resources/*_test.go`.
-- [ ] T004 [US1] Controller and manager in `shop-operator/`:
-  - `cmd/main.go`: flags `--watch-namespace` (cache restricted to it), `--shop-domain`,
-    `--ingress-class`, `--trusted-proxy-cidrs`, `--shophub-namespace`;
+- [X] T004 [US1] Controller and manager in `shop-operator/`:
+  - `cmd/main.go`: flags `--watch-namespace` (cache restricted to it; DiscordChannels and their
+    Secrets also cached in the operator namespace, research R4), `--shop-domain`,
+    `--ingress-class`, `--ingress-namespace`, `--trusted-proxy-cidrs`, `--shophub-namespace`;
   - `internal/controller/shop_controller.go`: apply Ingress and NetworkPolicy (owned),
     `Owns(&Ingress{}, &NetworkPolicy{})`, `status.url` HTTPS; Discord token read by name with the
     uncached reader from the operator namespace;
-  - RBAC markers → namespaced Role (`config/rbac/`), plus `networking.k8s.io` ingresses and
-    networkpolicies;
+  - RBAC markers plus `networking.k8s.io` ingresses and networkpolicies; `namespace=system`
+    markers for the own-namespace Role; `hack/sync-chart.sh` writes Roles only;
   - envtest in `internal/controller/*_test.go`: children created, owned and restored after a
     manual edit; status URL; a Shop outside the watched namespace gets no children and no status;
+    a DiscordChannel in the operator namespace is reconciled, one elsewhere is not;
     run via `optest.sh` in the dev container;
   - `README.md`: flags, RBAC, namespace.
 - [ ] T005 [US1] Chart `helm-charts/charts/shop-operator` 0.4.0:
   - `templates/namespace.yaml` (`shops`, label `shophub.io/shops: "true"`);
-  - Role + RoleBinding in `shopsNamespace`, Role `shop-operator-discord-token` (`resourceNames`)
-    in the release namespace, leader-election Role unchanged; ClusterRole/Binding removed;
+  - Role + RoleBinding in `shopsNamespace`, Role `…-platform-channels` in the release namespace
+    (research R4), leader-election Role unchanged; ClusterRole/Binding removed;
   - values `shopsNamespace`, `shopDomain`, `ingressClassName`, `trustedProxyCIDRs`,
     `shophubNamespace` wired to the flags; chart README and lint/template CI pass.
 - [ ] T006 [US1] Release and roll out 1B:
   - operator PR → **ask before merge** → tag `v0.3.0` → image;
   - helm-charts PR (chart 0.4.0, appVersion 0.3.0) → **ask before merge** → publish;
-  - kube-state PR (`clusters/local/shop-operator/helm.yaml` 0.4.0) → **ask before merge** →
-    `./bring-up.sh`;
+  - kube-state PR (`clusters/local/shop-operator/helm.yaml` 0.4.0; `shophub-discord`
+    `targetNamespace: shop-operator-system`) → before merging, the hand migration in quickstart
+    Scenario 1 step 1 (a, b) while 0.2.1 runs → **ask before merge** → `./bring-up.sh`;
   - live: quickstart Scenario 1 steps 2–4 (two hand-made test Shops in `shops`) and Scenario 2
     (`kubectl auth can-i` matrix, no ClusterRoleBinding, NetworkPolicy blocks `default` and allows
     `traefik`/`shophub`). Keep the test Shops for 1C.
+
+**Progress 1B (2026-11-24)**:
+- The platform alerts DiscordChannel moves to the operator namespace (decision recorded in
+  research R4 and FR-026; migration order in quickstart Scenario 1 step 1).
+- T003 and T004 are done: shop-operator PR #7 (branch `004-scoped-ingress`); `make lint` reports
+  0 issues, the unit tests and envtest pass in the dev container, including the namespace
+  scoping on a second API server.
+- T005 chart 0.4.0 is committed locally in helm-charts (branch `004-shop-operator-0.4.0`). Its PR
+  waits for the `v0.3.0` image, because CI installs the chart with its default `appVersion`.
 
 **Checkpoint 1B**: shops reachable at `https://<shop>.shops.localhost`; R-1 closed (SC-007 for
 the operator).
