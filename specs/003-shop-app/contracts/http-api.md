@@ -36,6 +36,18 @@ need the `X-XSRF-TOKEN` header that matches the `XSRF-TOKEN` cookie (400 otherwi
 | DELETE | `/api/admin/items/{id}` | – | 204 · 404 |
 | GET | `/api/admin/orders?page=1` | – | 200 `{orders:[{reference, createdAt, status, totalCents, walletAddress, lines:[{itemId,name,unitPriceCents,quantity}]}], page, pageSize:20, total}`, newest first |
 
+## Order limits
+
+- **Quantity**: at most 1,000 pieces of one item per order, counted after duplicate lines are
+  merged. More is a 400 on `lines.quantity`.
+- **Rate limit**: `POST /api/orders` allows 10 requests per minute per client IP (fixed window,
+  built-in ASP.NET Core rate limiting; `ORDER_RATE_LIMIT_PER_MINUTE` overrides the number).
+  - Every request counts, including rejected ones. Over the limit: **429** problem details with
+    `Retry-After` (seconds), and nothing is stored.
+  - The window is in memory per replica. The key is the TCP peer address; forwarded headers are
+    not trusted.
+  - Other endpoints are not limited.
+
 ## Store unavailable
 
 Any endpoint above (public or admin) returns **503** with a problem "temporarily unavailable" when

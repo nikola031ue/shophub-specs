@@ -348,6 +348,11 @@ scenarios on each; try to connect to the light shop's database without credentia
   This is delivered as the **first phase, before any app work**: operator release `0.2.0`,
   `shop-operator` chart release, and a kube-state PR, each with its own PR and CI. The 002
   contracts are updated to the new injected settings.
+- **Spec 005 (payment) must release the stock of unpaid orders.** This feature decrements stock
+  when an order is placed (Q2=A, FR-014) and never gives it back. Until spec 005 expires unpaid
+  `PendingPayment` orders and returns their stock, abandoned orders permanently tie up stock.
+  003 limits the exposure: `POST /api/orders` is rate-limited per client IP, and one order line
+  is capped at 1,000 pieces.
 - Released 002 platform: shop-operator, CNPG and the Redis operator installed via kube-state.
 - GitHub repository `shop-spec` (local folder `shop`), currently containing only an initial
   commit and no branch protection.

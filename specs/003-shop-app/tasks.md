@@ -250,13 +250,13 @@ shared contract suite, startup and admin authentication (research R8–R12).
 
 **Independent Test**: The API tests below; quickstart Scenario 7.
 
-- [ ] T019 [US3] `GET /api/admin/orders?page=` in `shop/src/Shop.Api/Endpoints/Admin.cs`. `ApiTests.cs`
+- [X] T019 [US3] `GET /api/admin/orders?page=` in `shop/src/Shop.Api/Endpoints/Admin.cs`. `ApiTests.cs`
   on both stores covers:
   - 3 orders newest first;
   - 45 orders → pages of 20, 20 and 5 with each order exactly once;
   - snapshot name and price after the item is renamed or deleted;
   - 401 without a session.
-- [ ] T020 [P] [US3] Angular orders page in `shop/src/Shop.Web/src/app/admin/orders/`: table with
+- [X] T020 [P] [US3] Angular orders page in `shop/src/Shop.Web/src/app/admin/orders/`: table with
   reference, time, status, total and expandable lines; pager.
 
 ---
@@ -592,8 +592,30 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
 
 ### 2026-11-24 — Phase 5: User Story 2, customer places an order (T017–T018)
 
-- shop-spec#4 (branch `003-us2-storefront`). **Not merged yet**: waiting for the maintainer's
-  approval.
+- shop-spec#4 (branch `003-us2-storefront`), squash-merged as `fe23368` after approval, with
+  green CI on the final commit `922d4d1` (148 tests).
+- **Added before merge** (maintainer request, commit `922d4d1`):
+  - **Rate limit** on `POST /api/orders` with built-in ASP.NET Core rate limiting.
+    - Fixed window per TCP peer address, 10 requests per minute by default
+      (`ORDER_RATE_LIMIT_PER_MINUTE` overrides); queue 0.
+    - 429 problem details with `Retry-After`; only this endpoint is limited.
+    - The limit is in memory per replica (N replicas → up to N × 10). Forwarded headers are not
+      trusted. Behind a Kubernetes Service the peer may be a node or proxy address rather than
+      the real client, so the limit can act per node; revisit when an ingress is added
+      (spec 004/006).
+  - **Max quantity per order line**: `OrderRules.MaxQuantityPerLine = 1000`, checked after
+    duplicate lines are merged; the cart caps the same way. The largest possible total
+    (50 × 1,000 × 999,999,999.99) is now far below 2^53, and the total check stays as a guard.
+  - Tests:
+    - per store: 4th order from one IP within the window → 429 with `Retry-After` and nothing
+      stored, while another IP and `GET /api/items` still work (the test host sets the client IP
+      from a test-only header); 1,001 pieces, also split over duplicate lines, → 400;
+    - unit and `ng` tests for the cap.
+  - Docs: contracts/http-api.md "Order limits", data-model.md `OrderLine.quantity`.
+- **Dependency for spec 005 (recorded at the maintainer's request)**: *release stock of unpaid
+  orders*. Stock is decremented at order time (Q2=A) and never returned in 003; spec 005 must
+  expire unpaid `PendingPayment` orders and give their stock back. It is also listed under
+  spec.md "Dependencies". The rate limit and line cap only limit the exposure until then.
 - **T017** `Endpoints/Public.cs`:
   - `GET /api/shop`; `GET /api/items` (same handler as the admin list);
   - `POST /api/orders`: 201, 409 problems with `null` fields omitted, 400, 503 via the error
@@ -616,3 +638,26 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - client routes 200;
   - 0 secret hits in the logs; about 39 MiB.
 - 145 .NET tests pass locally with `CI=true`.
+
+### 2026-11-24 — Phase 6: User Story 3, admin lists orders (T019–T020)
+
+- shop-spec#5 (branch `003-us3-orders`), CI `lint` and `test` green (154 tests). **Not merged
+  yet**: waiting for the maintainer's approval.
+- **T019** `GET /api/admin/orders?page=`: 20 per page, newest first (ties broken by reference),
+  lines exactly as stored; 400 for `page < 1`; 401 without a session.
+- `ApiTests.cs`: 3 more tests per store (20 per store in total) for US3 scenarios 1–3. The
+  anonymous-refusal test now includes the orders list.
+  - Orders for scenarios 1–2 are seeded through the store with distinct times, because the
+    public endpoint is rate-limited.
+  - Scenario 3 places its order through `POST /api/orders`, then renames, reprices and deletes
+    the items.
+- **T020** `src/app/admin/orders/`:
+  - orders page linked from the admin nav: reference, local time, status label, total,
+    expandable lines (`aria-expanded`) with line totals and the payment address; pager.
+  - One component test (list, expand, next page). 17 `ng` tests in total.
+- Real image on Postgres 18.7:
+  - admin order list with page size 20; 401 without a session; `/admin/orders` serves the app;
+  - quantity 1,001 → 400;
+  - the 10th order request in a minute → 429 with `Retry-After: 60` (the earlier 400 counted
+    towards the limit, as documented);
+  - 0 secret hits in the logs.
