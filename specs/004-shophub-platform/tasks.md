@@ -54,7 +54,7 @@ has namespaced permissions only ([contracts/platform-phase1.md](contracts/platfo
     (contracts/platform-phase1.md, research R7);
   - `kube-state/.github/upstream-charts.yaml`: allowlist entry at the exact version;
   - bats cases for the new release in `kube-state/.github/tests/*.bats`.
-- [ ] T002 [US1] TLS precheck and docs, then roll out 1A:
+- [X] T002 [US1] TLS precheck and docs, then roll out 1A:
   - `kube-state/bring-up.sh`: before the `traefik` release, stop with the mkcert steps when
     Secret `shophub-tls` is missing in `traefik` (no secret value printed);
   - `kube-state/README.md` "Local HTTPS": `mkcert -install`, the cert for `shophub.localhost` and
@@ -66,8 +66,23 @@ has namespaced permissions only ([contracts/platform-phase1.md](contracts/platfo
 
 **Progress 1A (2026-11-24)**: T001 done; T002 code and docs done (exit 7 + mkcert help via
 `cluster.yaml` `requiredSecrets`). kube-state PR #9 (branch `004-traefik`): all 7 checks green,
-including e2e on kind. Waiting for merge approval; then the Secret, `./bring-up.sh` and the live
-check close T002.
+including e2e on kind. Squash-merged as kube-state `7bfa364`.
+
+**Done 1A (2026-11-24)**: `./bring-up.sh` → `1 installed, 0 upgraded, 5 unchanged` (traefik 42.3.1).
+Live from Windows:
+- `http://shophub.localhost/` → 301 to `https://shophub.localhost/`;
+- `https://shophub.localhost/` → 404 from Traefik;
+- the served certificate is the mkcert one (SAN `shophub.localhost`, `*.shops.localhost`) and
+  validates against the Windows trust store;
+- `traefik-proxies` resolves to the Traefik pod IP `10.244.0.64`;
+- the client address Traefik sees is `172.18.0.5`, the LoadBalancer proxy, not a pod or node
+  (research R5 records this and its limitation).
+
+Two notes for quickstart users on Windows:
+- Windows `curl.exe` (Schannel) needs `--ssl-no-revoke`, because mkcert certificates have no
+  revocation endpoint. Browsers don't.
+- The Windows resolver doesn't resolve `*.localhost`. Browsers and curl resolve it themselves;
+  PowerShell `Invoke-WebRequest` doesn't.
 
 **Checkpoint 1A**: entry point live; nothing else changed.
 

@@ -93,6 +93,20 @@ stable release that is at least two weeks old.
   blocked pod-to-pod HTTP, a `podSelector` allow rule admitted only the labelled client, and
   removing the policies restored access. The Shop policy's `namespaceSelector` form is confirmed
   live in quickstart Scenario 2.
+- **Observed client address at Traefik (verified 2026-11-24)**: a throwaway `traefik/whoami`
+  behind an IngressRoute on `shophub.localhost`, called with `curl https://shophub.localhost/…`
+  from Windows, reported `X-Forwarded-For: 172.18.0.5` / `X-Real-Ip: 172.18.0.5` (peer
+  `10.244.0.64` = the Traefik pod).
+  - `172.18.0.5` is the Docker Desktop LoadBalancer proxy container (`kindccm-…`, the Service's
+    EXTERNAL-IP) on the `kind` Docker network. It is neither a pod (pod CIDR `10.244.0.0/24`) nor a
+    node (`desktop-control-plane` is `172.18.0.2`), so the check passes.
+  - **Limitation**: that proxy opens a new connection to Traefik, so locally Traefik sees the
+    proxy's address, not the Windows client's. `externalTrafficPolicy: Local` doesn't change this.
+    Every local client therefore shares one address, and per-address lockout and rate limiting
+    (R6) act as one shared bucket on Docker Desktop. This is accepted for local use; on a cluster
+    whose load balancer keeps the source address, the same code keys on the real client. The
+    trust chain itself (only Traefik's `X-Forwarded-For` is honoured, forged headers are ignored)
+    is unaffected.
 - **Alternatives**: a shared-secret header added by a Traefik middleware (a secret in a
   non-Secret resource); trusting all addresses (forgeable from outside).
 
