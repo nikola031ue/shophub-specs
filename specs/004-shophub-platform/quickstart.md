@@ -45,7 +45,7 @@ Expected: `yes` only for `shops` and for the token Secret by name. No ClusterRol
 created in another namespace gets no children.
 
 NetworkPolicy check: from a throwaway pod in `default`, `curl http://<shop>.shops.svc` must fail.
-From the entry point it works. Record whether the local CNI enforces the policy (research R5).
+From the entry point and from namespace `shophub` it works. (The local CNI enforces policies; research R5.)
 
 ## Scenario 3 — Real client address in shops (US1 scenarios 3–6, FR-022–FR-025, SC-005)
 

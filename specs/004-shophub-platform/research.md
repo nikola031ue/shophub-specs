@@ -88,9 +88,11 @@ stable release that is at least two weeks old.
     namespace `traefik` and in namespace `shophub` (for the FR-016 status read), port 80.
 - **Rationale**: the app can't know Traefik's pod IPs, but with the NetworkPolicy, anything in the
   pod CIDR that reaches the app is the entry point or ShopHub, both platform code.
-- **Risk**: whether Docker Desktop's CNI enforces NetworkPolicies is checked in quickstart
-  Scenario 2. If it doesn't, the policy stays (correct on enforcing clusters), and the gap is a
-  recorded limitation: only in-cluster pods could forge the header, never an outside client.
+- **Enforcement (verified 2026-11-24)**: Docker Desktop Kubernetes v1.36.1 (kind-based, CNI
+  `kindnetd` v20260528) enforces NetworkPolicies. In a throwaway namespace, a deny-all policy
+  blocked pod-to-pod HTTP, a `podSelector` allow rule admitted only the labelled client, and
+  removing the policies restored access. The Shop policy's `namespaceSelector` form is confirmed
+  live in quickstart Scenario 2.
 - **Alternatives**: a shared-secret header added by a Traefik middleware (a secret in a
   non-Secret resource); trusting all addresses (forgeable from outside).
 
