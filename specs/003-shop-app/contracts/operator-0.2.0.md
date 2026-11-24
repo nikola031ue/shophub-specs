@@ -66,6 +66,8 @@ anyway: the Redis operator copies the Redis CR's labels (`managed-by`, `shophub.
    - If it is absent **and** `<shop>-redis` already exists, do not regenerate. Report `Ready=False`
      with reason `RedisCredentialsLost`.
    - Recovery: delete and recreate the Shop (README).
+   - **Planned for 0.2.1 (tasks.md T026)**: regenerate the Secret and restart the Redis with the
+     new password, keeping the PVC data, so the Shop no longer has to be deleted.
 3. **0.1.0 upgrade**: a live `<shop>-redis` without `spec.storage` is deleted once, with an info
    log `recreating Redis without storage (0.1.0 upgrade)`, and recreated on the next reconcile.
    The Shop shows `DatabaseProvisioning` meanwhile.

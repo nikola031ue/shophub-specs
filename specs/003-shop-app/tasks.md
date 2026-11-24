@@ -279,6 +279,26 @@ SC-003, SC-007–SC-009).
   - tag `v0.1.0` and confirm the `release` job pushed `ghcr.io/nikola031ue/shop:0.1.0` within
     15 min (SC-008);
   - **ask before** making the GHCR package public; verify an anonymous `docker pull`.
+- [ ] T026 Operator 0.2.1: self-healing Redis password (planned 2026-11-24; ID added after
+  T025, runs here). Can start any time after Phase 1 and **must finish before T024**:
+  - in `shop-operator/internal/controller/shop_controller.go` `prepareRedis`: when
+    `<shop>-redis-auth` is missing and `<shop>-redis` exists, generate a new password Secret
+    instead of reporting `RedisCredentialsLost`. Restart the Redis so it starts with the new
+    password, keeping the PVC and its AOF data.
+    - Design choice to settle in the PR: delete pod `<shop>-redis-0` (needs a new RBAC rule,
+      pods `delete`) or another restart path the OT operator honours. Never delete the Redis CR
+      or the PVC.
+    - The shop pods roll on their own through the `shophub.io/redis-secret-uid` annotation.
+  - Retire or redefine `ReasonRedisCredentialsLost` (Ready=False only while the Redis restarts).
+    Log the Secret name only.
+  - envtest: Secret recreated, Redis CR and PVC not deleted, annotation changes. Live drill in
+    `qs`: write a key, delete `lite-redis-auth`, check the key survives and `lite` is Ready with
+    the new password.
+  - Docs: README recovery section, [contracts/operator-0.2.0.md](contracts/operator-0.2.0.md)
+    rule 2 and status table, research R2, quickstart Scenario 2 step 4.
+  - Memory 128Mi/256Mi is already in 0.2.0 (verified in code and on `std`/`lite`); nothing to add.
+  - Release: shop-operator PR, **ask before merging**, tag `v0.2.1`; chart `shop-operator`
+    `0.3.1`; kube-state `helm.yaml` → `0.3.1` (may share the T023 PR). Each merge asked first.
 - [ ] T023 [US4] kube-state rollout:
   - `kube-state/clusters/local/shop-operator/values.yaml` adds
     `shopImage: {repository: ghcr.io/nikola031ue/shop, tag: "0.1.0"}`;
@@ -316,7 +336,8 @@ SC-003, SC-007–SC-009).
 - **Phase 3 (foundational)**: T009 ∥ T010 → T011 → T012 ∥ T013 → T014.
 - **Phases 4–6 (US1–US3)**: each needs Phase 3. US3 needs orders from US2 to be meaningful but its
   tests seed orders through the store, so it can run after Phase 3.
-- **Phase 7 (US4)**: needs US1–US3 merged-ready. T021 → T022 → T023 → T024.
+- **Phase 7 (US4)**: needs US1–US3 merged-ready. T021 → T022 → T023 → T024. T026 (operator
+  0.2.1) depends only on Phase 1 and must be deployed before T024.
 - **Phase 8**: after T024.
 
 ### Within Each Story
