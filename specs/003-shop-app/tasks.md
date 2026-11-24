@@ -739,3 +739,37 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
 - Test-script mistake, not an app bug: the first SC-005 search used `widget 012`, but the seeded
   names have 3 digits, so it correctly matched 1 item. Re-run with `widget 01` (10 matches).
 - Namespace `qs` deleted afterwards; no PVs left.
+
+### 2026-11-24 — T025: self-review (findings reported, nothing changed yet)
+
+- Constitution Check holds for the merged diffs:
+  - I: only the chart version bump; `charts/shop` untouched.
+  - II: shop-spec, shop-operator-spec, helm-charts-spec and kube-state-spec `main` are
+    protected: required checks, strict, linear history, squash only.
+  - III: tests are required in CI.
+  - V: no RBAC change in 0.2.0 or 0.2.1; hand changes only in `qs` (now deleted), including the
+    `probe-redis` check.
+  - VI: Secrets reach the app only via `secretKeyRef`.
+  - VII: deviation as recorded.
+- Secret scan (SC-007):
+  - T024 searched every commit of the five repos for the real values: 0 hits.
+  - A generic pattern scan (GitHub tokens, private keys, Discord tokens, 64-hex keys,
+    credentialed Postgres URIs) over all history finds only made-up test fixtures in `shop/tests`.
+- Findings, for the maintainer to decide (none fixed):
+  - MEDIUM: the lockout is shop-wide (FR-006 as specified). Anyone who can reach
+    `/api/admin/login` can keep the admin locked out with 5 wrong tries every 15 min.
+  - MEDIUM (known, recorded): the order rate limit is keyed on the TCP peer address. Behind a
+    future ingress, all customers share one key (10 orders/min per replica for the whole shop).
+    Together with stock that is never released for unpaid orders (spec 005 dependency), this
+    makes stock exhaustion cheap.
+  - LOW: cookies use `SecurePolicy.SameAsRequest` and forwarded headers are not trusted. Behind
+    TLS-terminating ingress the session cookie would not be marked `Secure`. To decide with the
+    ingress (spec 004).
+  - LOW: no security headers (`X-Content-Type-Options`, `frame-ancestors`/`X-Frame-Options`).
+    `SameSite=Strict` already stops framed admin pages from being signed in.
+  - LOW: the shop `release` job checks SemVer and no overwrite, but not that the tagged commit is
+    on `main` (the README says "on main"). shop-operator CI has the same gap.
+  - LOW (docs): the shop README settings table names only `<shop>-redis-auth`. After a 0.2.1
+    recovery it is `<shop>-redis-auth-<n>`.
+  - LOW: shophub-specs `main` has no branch protection and allows rebase merges. Merge commits
+    are off, as the plan requires.
