@@ -110,7 +110,7 @@ research R7, R13, R14).
 
   Local check: `docker build` and `docker run -e …` with local Postgres serves `index.html` on
   port 80.
-- [ ] T008 `shop/.github/workflows/ci.yaml`:
+- [X] T008 `shop/.github/workflows/ci.yaml`:
   - jobs `lint` (`dotnet format --verify-no-changes`, `ng lint`), `test` (`dotnet test`,
     `ng test --watch=false`) and `release` (`v*.*.*` only, SemVer check, push
     `ghcr.io/nikola031ue/shop:X.Y.Z` with `GITHUB_TOKEN`, never `latest`);
@@ -443,12 +443,12 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
     and the `qs` events.
   - `std` and `lite` are kept in `qs` for Phase 7.
 
-### 2026-11-24 — Phase 2: app setup (T006–T008, in progress)
+### 2026-11-24 — Phase 2: app setup (T006–T008)
 
 - Before starting: memory request 128Mi / limit 256Mi confirmed in operator 0.2.0
   (`internal/resources/resources.go`) and on the live `std`/`lite` Deployments; nothing for 0.2.1.
   The self-healing Redis password is planned as T026 (operator 0.2.1, before T024).
-- **T006** (`shop` branch `003-scaffold`, commit `9f71729`, local):
+- **T006** (shop-spec#1, squash `7e5ee76`):
   - .NET SDK `10.0.401` in `global.json`, which also opts into Microsoft.Testing.Platform. The
     .NET 10 SDK refuses VSTest with xUnit v3, so `Microsoft.NET.Test.Sdk` and
     `xunit.runner.visualstudio` are not used; tests run with `dotnet test --solution Shop.slnx`.
@@ -463,4 +463,7 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   RSS, image 182 MB. No database check yet: the app has no store code until Phase 3.
 - **T008**: `ci.yaml` with `lint`, `test` and `release` (SemVer, no overwrite, no `latest`),
   actions pinned by SHA (adds `setup-dotnet` v6.1.0 and `setup-node` v7.1.0). All four checks pass
-  locally. Pending: push, PR, branch protection and merge, each asked first.
+  locally and in CI (PR and `main`).
+- Repo settings (approved): `main` protected like shop-operator-spec (PR required, required
+  strict checks `lint` and `test`, linear history, admins included, no force pushes or
+  deletions); squash-only; head branches auto-deleted. PR #1 squash-merged after approval.
