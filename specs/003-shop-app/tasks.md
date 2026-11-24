@@ -312,7 +312,7 @@ SC-003, SC-007–SC-009).
   - open the kube-state-spec PR, CI green, **ask before merging**;
   - run `./bring-up.sh` (only `shop-operator` upgraded); `std` and `lite` roll to the app and
     reach Ready.
-- [ ] T024 [US4] Quickstart Scenarios 3–9 on Docker Desktop:
+- [X] T024 [US4] Quickstart Scenarios 3–9 on Docker Desktop:
   - seed 1,000 items through the admin API on each shop and time a search (SC-005, quickstart
     Scenario 6 step 4);
   - record timings (SC-001, SC-002, SC-005, SC-008) and results in a Validation log in
@@ -725,3 +725,17 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   bring-up, with 2/2 pods each.
 - In-cluster: `/healthz` ok and `/api/shop` returns the shop name on both (`QS Standard`,
   `QS Light`).
+
+### 2026-11-24 — T024: quickstart Scenarios 3–9
+
+- All pass on `std` and `lite`. Details and timings are in the
+  [quickstart Validation log](quickstart.md#validation-log). In short:
+  - SC-008: release in 2 min 42 s;
+  - SC-002: order placed in about 1 s (scripted);
+  - SC-005: search over 1,003 items ≤ 22 ms;
+  - SC-009: data kept after a Redis pod loss and app restarts, and one session works on all 3
+    replicas;
+  - SC-007: 0 secret matches.
+- Test-script mistake, not an app bug: the first SC-005 search used `widget 012`, but the seeded
+  names have 3 digits, so it correctly matched 1 item. Re-run with `widget 01` (10 matches).
+- Namespace `qs` deleted afterwards; no PVs left.

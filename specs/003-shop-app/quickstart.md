@@ -126,3 +126,96 @@ Scan for the admin and Redis passwords and the DB URI. Expected 0 matches in all
 - `git grep` over all repositories.
 
 Clean up: `kubectl delete ns qs`.
+
+## Validation log
+
+### 2026-11-24 — Scenarios 3–9 on Docker Desktop (T024)
+
+Cluster: Docker Desktop Kubernetes. Software:
+
+- shop-operator 0.2.1 (chart 0.3.1);
+- shop 0.1.0 (`sha256:ad30c64d…`);
+- CNPG with PostgreSQL 18.7, and redis-operator 0.27.0 with Redis 7.2.16.
+
+Shops `std` (standard, PostgreSQL) and `lite` (light, Redis) ran in namespace `qs`.
+
+Scenarios 5–9 ran through `kubectl port-forward` with a script that drives the HTTP API the way
+the Angular app does: cookie session plus the `X-XSRF-TOKEN` header.
+
+- Admin passwords were read from the Secrets into shell variables only and never printed.
+- Times marked "scripted" are API times, not human click times.
+- The browser UI was clicked through by the maintainer against the same image on Postgres before
+  the release (T022). The browser-only behaviour (cart kept on reload, the price-change dialog)
+  is covered by the `ng` tests.
+
+| Scenario | Result |
+|----------|--------|
+| 3 App tests | Pass. Release run 45391109635 on the `v0.1.0` commit: 154/154 .NET tests (store contract on PostgreSQL 18.7 and Redis 7.2.16, including 20 concurrent orders against 5 in stock, lockout and API suites) and 17/17 `ng` tests |
+| 4 Release and rollout | Pass. The `release` job finished **2 min 42 s** after the tag (SC-008 ≤ 15 min); anonymous pull works; no `latest`. kube-state#7 + `./bring-up.sh`: only `shop-operator` upgraded, and `std` and `lite` were on the app and Ready in **27 s** |
+| 5 Admin and items | Pass on both, 18/18 checks each: see details below |
+| 6 Customer order | Pass on both: see details below |
+| 7 Orders list | Pass on both: newest first; after renaming and repricing the item, the old order still shows `Blue shirt`, 15.00 × 2, PendingPayment, with the wallet address |
+| 8 Durability and replicas | Pass, 11/11 checks: see details below |
+| 9 No secret leaks | Pass: 0 matches. See details below |
+
+**Scenario 5 (admin and items)**
+
+- Sign-in with the generated password; the app asks for a new one; a password under 12 characters
+  is refused; the change keeps the browser signed in.
+- Create, edit and delete items. An invalid item gets per-field errors (`name`, `price`,
+  `stock`). A case-insensitive duplicate name gets 409.
+- Admin API without a session: 401.
+- Step 3, lockout: after 5 wrong passwords, the correct password gets **429** with
+  `Retry-After: 900` on both shops.
+- Step 5, after `rollout restart`, is recorded under Scenario 8.
+- SC-001: the first item was visible in the storefront within 1 s of signing in (scripted).
+  Both shops were Ready before the run.
+
+**Scenario 6 (customer order)**
+
+- Case-insensitive search; 2 pieces ordered (SC-002: shop opened to order placed in **1.0 s /
+  0.8 s**, scripted); stock went from 10 to 8.
+- The admin changed the price, so the order at the old price got 409 `price` with
+  `currentPriceCents` 1600 and no order was stored. The order at the confirmed price succeeded.
+- Quantity 1,001: 400.
+- SC-005: seeded **1,000 items** through the admin API (about 240 s per shop, 0 failures). A search
+  for `widget 01` matched 10 of 1,003 items.
+  - Through port-forward: best 10/12 ms, worst **18/22 ms** (std/lite).
+  - In-cluster: ≤ 82 ms on the first request, then 5–20 ms.
+
+**Scenario 8 (durability and replicas)**
+
+- `std` at `availability: high` (3 pods): one session, signed in through the Service, worked on
+  every pod directly (read, plus a write with XSRF).
+- `lite-redis-0` deleted: the pod was replaced, and all 1,003 items and 2 orders were still
+  there.
+- `rollout restart` of both shops:
+  - the **changed** admin password still works and `initialPassword` stays false (Scenario 5
+    step 5);
+  - data kept on both (1,003 items, 2 orders each);
+  - `std` was set back to `standard` afterwards.
+
+**Scenario 9 (no secret leaks)**
+
+Searched for 7 values: both generated admin passwords, both changed admin passwords, the Redis
+password (`lite-redis-auth-2`), and the CNPG URI and password. **0 matches** in:
+
+- `kubectl get shop -o yaml`;
+- the events in `qs`;
+- the logs of all app pods of both shops;
+- the operator log;
+- `git grep` over every commit of shop, shop-operator, helm-charts, kube-state and shophub-specs.
+
+A positive control (the same search over the Secret's own value) matched, so the search works.
+
+Limit: pods replaced during the run take their logs with them. The current app logs date from
+the Scenario 8 restart. Earlier log scans:
+
+- each phase's image check;
+- the T026 drill (0 hits for the new Redis password);
+- the T022 click-through instance.
+
+Also covered in this run: the T026 drill on `lite`. The deleted `lite-redis-auth` was replaced
+by `lite-redis-auth-2`, the Redis restarted, and the key survived (tasks.md log).
+
+Cleanup: `kubectl delete ns qs`. The script and its temporary password files were deleted.
