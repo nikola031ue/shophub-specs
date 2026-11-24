@@ -306,7 +306,7 @@ SC-003, SC-007–SC-009).
   - Memory 128Mi/256Mi is already in 0.2.0 (verified in code and on `std`/`lite`); nothing to add.
   - Release: shop-operator PR, **ask before merging**, tag `v0.2.1`; chart `shop-operator`
     `0.3.1`; kube-state `helm.yaml` → `0.3.1` (may share the T023 PR). Each merge asked first.
-- [ ] T023 [US4] kube-state rollout:
+- [X] T023 [US4] kube-state rollout:
   - `kube-state/clusters/local/shop-operator/values.yaml` adds
     `shopImage: {repository: ghcr.io/nikola031ue/shop, tag: "0.1.0"}`;
   - open the kube-state-spec PR, CI green, **ask before merging**;
@@ -715,3 +715,13 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - the operator log names both Secrets; 0 password hits.
 - Docs updated: operator README (recovery section, env table), contracts/operator-0.2.0.md
   rule 2 and the status table, research R2, quickstart Scenario 1 list and Scenario 2 step 4.
+
+### 2026-11-24 — T023: kube-state rollout of shop 0.1.0
+
+- kube-state-spec#7 (`shopImage: {repository: ghcr.io/nikola031ue/shop, tag: "0.1.0"}`), all 7
+  checks green, squash-merged (`79e0688`) after approval.
+- `./bring-up.sh`: only `shop-operator` was upgraded (values change). `std` and `lite` rolled from
+  `nginx:1.27.3` to `ghcr.io/nikola031ue/shop:0.1.0` and were both Ready **27 s** after
+  bring-up, with 2/2 pods each.
+- In-cluster: `/healthz` ok and `/api/shop` returns the shop name on both (`QS Standard`,
+  `QS Light`).
