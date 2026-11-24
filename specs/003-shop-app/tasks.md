@@ -198,7 +198,7 @@ shared contract suite, startup and admin authentication (research R8–R12).
 
 **Independent Test**: The API tests below on both stores; quickstart Scenario 5.
 
-- [ ] T015 [US1] Admin endpoints in `shop/src/Shop.Api/Endpoints/Admin.cs` per
+- [X] T015 [US1] Admin endpoints in `shop/src/Shop.Api/Endpoints/Admin.cs` per
   [contracts/http-api.md](contracts/http-api.md):
   - `login` (204/401/429 with `Retry-After`), `logout`, `me`, `password` (≥ 12 chars, sets
     `initial=false`);
@@ -214,7 +214,7 @@ shared contract suite, startup and admin authentication (research R8–R12).
   - **FR-024 / SC-007**: all app log output captured during the API tests and a failed start
     with a bad `DATABASE_URL` contains none of `ADMIN_PASSWORD`, `REDIS_PASSWORD`, the DB
     password, the admin password hash, or any password the tests sent.
-- [ ] T016 [P] [US1] Angular admin in `shop/src/Shop.Web/src/app/admin/`:
+- [X] T016 [P] [US1] Angular admin in `shop/src/Shop.Web/src/app/admin/`:
   - login page, auth guard, prompt to change the initial password;
   - items list with search, create/edit form with field errors, delete with confirm;
   - change-password page, sign-out.
@@ -477,8 +477,21 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
 
 ### 2026-11-24 — Phase 3: foundational (T009–T014)
 
-- shop-spec#2 (branch `003-foundation`, commit `f538daa`), CI `lint` and `test` green (105 tests
-  in CI). **Not merged yet**: waiting for the maintainer's approval.
+- shop-spec#2 (branch `003-foundation`), squash-merged as `7273041` after the maintainer's
+  approval, once the price fix below was in (CI 109 tests green on `2128157`).
+- **Order prices** (maintainer review before merge, fix `2128157`): both stores used to copy the
+  request's `unitPriceCents` into the stored line and total. That was only safe because a
+  mismatch rejects the order.
+  - Now the request value is renamed `OrderRequestLine.ExpectedUnitPriceCents` and is used only
+    for the FR-013 comparison. Lines and the total use the stored item price (PostgreSQL row;
+    Lua `item.priceCents`, total summed in Lua and written with `%.0f`).
+  - The client value is **not ignored entirely**: FR-013 requires detecting a changed price, so
+    it remains the expectation that is compared.
+  - Orders whose total would exceed 2^53 − 1 cents are refused in `OrderRules.Normalize`
+    (`Int128` sum), so both stores stay exact.
+  - New contract tests `ClientCannotChooseThePrice` (lower or higher client prices never produce
+    an order; stored line price and total equal the store's) and `LargeTotalsStayExact`.
+  - Docs: data-model.md `OrderLine.unitPriceCents`, research R9, contracts/http-api.md.
 - **T009** `Settings.cs`: env validation per R10; the CNPG URI goes to Npgsql with
   `GssEncryptionMode=Disable`. Running the image against a real Postgres showed Npgsql trying to
   load `libgssapi_krb5` on the chiseled runtime; CNPG doesn't use GSSAPI. Errors name variables
@@ -518,3 +531,41 @@ It isn't released alone: `v0.1.0` (T022) also contains US2 and US3, so there is 
   - Postgres stopped while running: `/healthz` returns 503 problem details;
   - generated passwords: 0 hits in the logs.
   - This completes the database part of the T007 local check.
+
+### 2026-11-24 — Phase 4: User Story 1, admin manages items (T015–T016)
+
+- shop-spec#3 (branch `003-us1-admin`), CI `lint` and `test` green (127 tests in CI). **Not merged
+  yet**: waiting for the maintainer's approval.
+- **T015** `Endpoints/Admin.cs` per contracts/http-api.md:
+  - login 204/401/429 with `Retry-After`; logout; `me`, which also re-issues the XSRF cookie so
+    a reloaded UI can make changes; password change;
+  - items list, create, update and delete, with per-field 400s and 409 (`errors.name`) on a
+    duplicate name.
+  - Authorization runs before the XSRF filter: no session gives 401, a session without the
+    header gives 400.
+- `Integration/ApiTests.cs`, 9 tests per store, covers everything T015 lists. Notes:
+  - The test Postgres now gets a unique password, so the log-leak check can search for it.
+  - The failed start uses a wrong database password with an 8 s host startup timeout; logs are
+    captured at Debug level.
+  - The lockout is also checked from a second app instance.
+- **T016** Angular admin under `src/app/admin/`:
+  - login page, `adminGuard` (redirects with `returnUrl`), banner prompting to replace the
+    generated password;
+  - items page with search, pager, create/edit form showing field errors, delete with
+    `confirm`;
+  - change-password page (client checks length and match first), sign-out.
+  - Plain CSS. `shared/api.ts` has the cents formatter and the problem/field-error mapping,
+    with unit tests.
+  - Editing happens inline on the items page; the contract has no single-item GET, so no edit
+    route was added.
+- Real image against Postgres 18.7, over HTTP with a cookie jar like a browser:
+  - `/admin/items` serves the app; login 204;
+  - cookies: `shop.session` and `shop.af` HttpOnly, `XSRF-TOKEN` readable;
+  - create without XSRF 400; create 201; invalid input 400 naming all three fields;
+  - logout, then `me` 401;
+  - 0 secret hits in the logs; about 38 MiB.
+- Not done yet: clicking through the UI in a real browser (planned for the T024 quickstart run).
+  The storefront parts of US1 scenarios 2–4 depend on the public endpoints (T017).
+- Known limit (FR-007, recorded for T025): sign-out deletes the cookie, but sessions are
+  stateless cookie tickets. A copied cookie stays valid until its 8 h expiry. Server-side
+  revocation would need a session stamp in the admin record.

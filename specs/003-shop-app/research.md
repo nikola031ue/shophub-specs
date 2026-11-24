@@ -113,6 +113,10 @@ in Phase 1, before any app work.
 
 - **Decision**: The client sends lines `{itemId, quantity, unitPriceCents}`. The store checks
   existence, price and stock and either writes everything or nothing.
+  - The client's `unitPriceCents` is only the **expected** price for the FR-013 comparison.
+    Stored line prices and the total are always taken from the stored item, never from the
+    request. Orders whose total would exceed 2^53 − 1 cents are refused (400), so both stores
+    compute it exactly.
   - **PostgreSQL**: one transaction. `SELECT … FOR UPDATE` on the items in id order (no
     deadlocks), compare, then `UPDATE items SET stock = stock - q` and `INSERT` the order.
   - **Redis**: one Lua script (`EVALSHA`). Read each item from hash `shop:items` (cjson), compare,

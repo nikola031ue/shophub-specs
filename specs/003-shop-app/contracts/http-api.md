@@ -15,6 +15,10 @@ validation problem adds `errors: {field: [message]}`. Money is integer cents of 
 
 Duplicate `itemId`s in one request are merged before checking.
 
+`unitPriceCents` in the request is the price the customer saw. It is only compared with the
+current price (409 `price` on a mismatch); the stored line prices and `totalCents` always come
+from the shop's own item records.
+
 ## Admin (cookie session, research R11)
 
 All endpoints except `login` need a valid session (401 otherwise). State-changing endpoints also
