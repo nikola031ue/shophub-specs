@@ -19,7 +19,8 @@ Two deliveries, strictly in order.
 - **shop-operator 0.3.0**, CRD schemas unchanged (one validation rule: no dots in Shop names, FR-021):
   - Per Shop, an owned `Ingress` (host `<shop>.shops.localhost`, Shop status `url` becomes
     `https://…`).
-  - Per Shop, an owned `NetworkPolicy`: only the entry point and ShopHub may reach the app.
+  - Per Shop, an owned `NetworkPolicy`: only the entry point and the ShopHub app pods may reach
+    the app (released as 0.3.1 with the pod selector).
   - A new env `TRUSTED_PROXY_HOST` for the app (the Traefik pods' DNS name, R5).
   - The operator reconciles Shops and Wallets **only in the `shops` namespace**. The manager
     ClusterRole is replaced by a namespaced **Role in `shops`**, plus a Role in its own namespace

@@ -96,7 +96,7 @@ Read only (never written by ShopHub):
 | Kind | Name | Content |
 |------|------|---------|
 | `Ingress` | `<shop>` | class from `--ingress-class`; host `<shop>.<--shop-domain>`; path `/` → Service `<shop>:80` |
-| `NetworkPolicy` | `<shop>` | Pods `app.kubernetes.io/instance=<shop>`: ingress only from namespaces `traefik` and `shophub` (by `kubernetes.io/metadata.name`), TCP 80 |
+| `NetworkPolicy` | `<shop>` | Pods `app.kubernetes.io/instance=<shop>`: ingress only from namespace `traefik` and from the ShopHub app pods in namespace `shophub` (namespace by `kubernetes.io/metadata.name` plus pod labels from `--shophub-pod-selector`, in one peer), TCP 80 |
 
 Shop `status.url` becomes `https://<shop>.<shop-domain>`. The Deployment gets env
 `TRUSTED_PROXY_HOST` (from `--trusted-proxy-host`, research R5). The Shop CRD rejects a

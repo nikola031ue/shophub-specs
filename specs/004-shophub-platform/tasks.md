@@ -112,7 +112,7 @@ Two notes for quickstart users on Windows:
     a DiscordChannel in the operator namespace is reconciled, one elsewhere is not;
     run via `optest.sh` in the dev container;
   - `README.md`: flags, RBAC, namespace.
-- [ ] T005 [US1] Chart `helm-charts/charts/shop-operator` 0.4.0:
+- [X] T005 [US1] Chart `helm-charts/charts/shop-operator` 0.4.0:
   - `templates/namespace.yaml` (`shops`, label `shophub.io/shops: "true"`);
   - Role + RoleBinding in `shopsNamespace`, Role `…-platform-channels` in the release namespace
     (research R4), leader-election Role unchanged; ClusterRole/Binding removed;
@@ -120,7 +120,7 @@ Two notes for quickstart users on Windows:
     `shophubNamespace` wired to the flags; chart README and lint/template CI pass.
 - [ ] T006 [US1] Release and roll out 1B:
   - operator PR → **ask before merge** → tag `v0.3.0` → image;
-  - helm-charts PR (chart 0.4.0, appVersion 0.3.0) → **ask before merge** → publish;
+  - helm-charts PR (chart 0.4.0, appVersion 0.3.1) → **ask before merge** → publish;
   - kube-state PR (`clusters/local/shop-operator/helm.yaml` 0.4.0; `shophub-discord`
     `targetNamespace: shop-operator-system`) → before merging, the hand migration in quickstart
     Scenario 1 step 1 (a, b) while 0.2.1 runs → **ask before merge** → `./bring-up.sh`;
@@ -136,6 +136,16 @@ Two notes for quickstart users on Windows:
   scoping on a second API server.
 - T005 chart 0.4.0 is committed locally in helm-charts (branch `004-shop-operator-0.4.0`). Its PR
   waits for the `v0.3.0` image, because CI installs the chart with its default `appVersion`.
+
+**Progress 1B (2026-11-25)**:
+- Before the merge, shops' forwarded-header trust was changed to Traefik only
+  (`TRUSTED_PROXY_HOST`, research R5 revised) and the CRD now rejects dotted Shop names (FR-021).
+- shop-operator PR #7 merged (`f2d8726`), tagged `v0.3.0`.
+- The Shop NetworkPolicy's ShopHub peer was narrowed to the ShopHub app pods
+  (`--shophub-pod-selector`, default `app.kubernetes.io/name=shophub,app.kubernetes.io/instance=shophub`): shop-operator PR #8 merged (`3d2e90f`), tagged
+  `v0.3.1`, image published.
+- T005 done: helm-charts PR #8 merged (`4bb9e0a`), chart `shop-operator` 0.4.0 with appVersion
+  0.3.1 published; CI install job green.
 
 **Checkpoint 1B**: shops reachable at `https://<shop>.shops.localhost`; R-1 closed (SC-007 for
 the operator).

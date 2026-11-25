@@ -96,7 +96,9 @@ stable release that is at least two weeks old.
     closed: the peer address is used, which only makes the lockout stricter).
   - Requests from any other peer keep their peer address.
   - Every Shop also gets an owned **NetworkPolicy**: ingress to the app pods only from pods in
-    namespace `traefik` and in namespace `shophub`, port 80. `shophub` is admitted for one
+    namespace `traefik` and from the ShopHub app pods (namespace `shophub` and the chart's pod
+    labels `app.kubernetes.io/name=shophub,app.kubernetes.io/instance=shophub` in one peer; operator 0.3.1), port 80. Other pods in `shophub`, such as its
+    database, are not admitted. ShopHub is admitted for one
     concrete feature, the FR-016 hand-off: ShopHub reads `GET /api/shop` over the in-cluster
     Service. It is an untrusted peer: its forwarded headers are ignored.
 - **Rationale**: the first design trusted the whole pod CIDR (`TRUSTED_PROXY_CIDRS=10.244.0.0/16`)
