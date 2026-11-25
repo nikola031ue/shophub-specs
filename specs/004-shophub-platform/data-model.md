@@ -50,11 +50,11 @@ PRIMARY KEY `(account, address)`. Same fixed-window semantics as shop 0.2.0 (FR-
 |--------|------|-------|
 | `id` | text | PK. Generated identifier `s[a-z2-7]{9}` (R9) |
 | `owner_id` | uuid | FK `owners` |
-| `display_name` | text | 1–100 characters after trimming (FR-006) |
+| `display_name` | text | 1–100 characters after trimming, counted as code points; no control characters (narrowing of FR-006: the name is shown in the panel and copied into the Shop) |
 | `display_name_key` | text | `lower(trim(display_name))`; UNIQUE `(owner_id, display_name_key)` |
 | `availability` | text | `standard` \| `high` |
 | `database` | text | `standard` \| `light`; immutable |
-| `wallet_address` | text | `^0x[0-9a-fA-F]{40}$`; mixed case must pass EIP-55 (FR-006, FR-009) |
+| `wallet_address` | text | `^0x[0-9a-fA-F]{40}$`; mixed case must pass EIP-55 (FR-006, FR-009); stored in EIP-55 form |
 | `wallet_generation` | int | Starts at 1; +1 on every address change. Current Wallet name is `<id>-w<generation>` |
 | `state` | text | `Active` \| `Deleting` |
 | `created_at`, `updated_at` | timestamptz | `updated_at` drives "needs attention" after 10 min not ready (R10) |
@@ -63,6 +63,10 @@ Rules:
 
 - At most 5 rows per `owner_id`, in any state (FR-011, setting `MaxShopsPerOwner`). Checked
   under a row lock on the owner.
+- Create is repeat-safe (SC-010): under the same lock, a request matching an existing row's
+  trimmed `display_name`, `availability`, `database` and `wallet_address`, with the row `Active`,
+  returns that row and inserts nothing. The same `display_name_key` with anything different is a
+  duplicate name (409). The repeat check comes before the limit check.
 - `display_name` and `database` never change after insert (FR-012).
 - Every query for an owner-facing API filters on `owner_id = @current` (FR-005). A missing row and
   another owner's row give the same 404.

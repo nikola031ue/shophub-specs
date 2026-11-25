@@ -215,8 +215,9 @@ stable release that is at least two weeks old.
     switch leftovers, interrupted creates).
   - Only one replica reconciles at a time, using a PostgreSQL advisory lock.
 - **Idempotency**:
-  - Create inserts the record with a unique `(owner_id, lower(trim(display_name)))` constraint.
-    A double submit gets 409 or the existing shop.
+  - Create inserts the record with a unique `(owner_id, lower(trim(display_name)))` constraint,
+    under a row lock on the owner. A double submit or retry with the same name and settings gets
+    the existing shop; the same name with other settings gets 409 (data-model.md `shops`).
   - Because SSA is idempotent, a crash between steps is finished on the next pass. A Wallet or
     channel can never stay without its record.
 - **Rationale**: one loop gives creation, drift repair, retries and cleanup together; no

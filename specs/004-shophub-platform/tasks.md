@@ -412,7 +412,7 @@ Progress (Phase 4):
 
 **Independent test**: quickstart Scenarios 6 and 7.
 
-- [ ] T017 [US3] Shop records in `shophub/src/ShopHub.Api/Shops/ShopRecords.cs`:
+- [X] T017 [US3] Shop records in `shophub/src/ShopHub.Api/Shops/ShopRecords.cs`:
   - id generation per data-model.md `shops.id`; name rules per `shops.display_name` and
     `shops.display_name_key`; `shops.availability`, `shops.database` enums; `shops.wallet_address`
     format and EIP-55 checksum;
@@ -420,6 +420,13 @@ Progress (Phase 4):
     every owner-facing query filters on `owner_id`;
   - idempotent create (double submit → one shop, SC-010);
   - unit + Postgres tests.
+
+  Progress: done in shophub PR #6 (branch `004-shop-records`). Identical repeat returns the
+  existing shop, other settings with the same name are a duplicate, repeat check before the limit;
+  wallet stored in EIP-55 form; names refuse control characters. Keccak-256 in-house (.NET SHA3 has
+  the wrong padding), cross-checked against platform SHA3-256. 210 tests; the two concurrency tests
+  (12 creates from 3 replicas) fail without the owner row lock. The example id `s7k2m9qxa1` in
+  panel-api.md and R9 was not valid base32 and is now `s7k2m4qxab`.
 - [ ] T018 [US3] Reconciler in `shophub/src/ShopHub.Api/Shops/{Reconciler,StateMapping,ReasonTexts}.cs`:
   - hosted service, every 30 s plus a trigger after each write, PostgreSQL advisory lock;
   - applies DiscordChannel `<id>`, Wallet `<id>-w<generation>` (from `shops.wallet_generation`)
