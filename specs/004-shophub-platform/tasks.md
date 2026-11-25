@@ -427,7 +427,7 @@ Progress (Phase 4):
   the wrong padding), cross-checked against platform SHA3-256. 210 tests; the two concurrency tests
   (12 creates from 3 replicas) fail without the owner row lock. The example id `s7k2m9qxa1` in
   panel-api.md and R9 was not valid base32 and is now `s7k2m4qxab`.
-- [ ] T018 [US3] Reconciler in `shophub/src/ShopHub.Api/Shops/{Reconciler,StateMapping,ReasonTexts}.cs`:
+- [X] T018 [US3] Reconciler in `shophub/src/ShopHub.Api/Shops/{Reconciler,StateMapping,ReasonTexts}.cs`:
   - hosted service, every 30 s plus a trigger after each write, PostgreSQL advisory lock;
   - applies DiscordChannel `<id>`, Wallet `<id>-w<generation>` (from `shops.wallet_generation`)
     and Shop `<id>` with the labels and specs of data-model.md "Cluster resources";
@@ -439,6 +439,13 @@ Progress (Phase 4):
   - k3s tests: create; drift repair; interrupted create at each step (after the DiscordChannel,
     after the Wallet, after the Shop) finishes with no orphan (SC-010); repeated apply is a
     no-op; a hand-made Shop carrying ShopHub labels but no record survives every pass.
+
+  Progress: done in shophub PR #7 (branch `004-reconciler`).
+  - Transaction-level advisory lock; the gateway is resolved only when there are records.
+  - `Deleting` records and old Wallet generations are left to T022 and T021.
+  - Research R8 corrected: no list-and-prune by label.
+  - 244 tests. Mutations caught: with no lock, the lock tests fail; with a stop at the first
+    failing shop, the isolation and interruption tests fail.
 - [ ] T019 [US3] Shop endpoints in `shophub/src/ShopHub.Api/Endpoints/Shops.cs`:
   - `GET /api/shops`, `POST /api/shops`, `GET /api/shops/{id}`,
     `POST /api/shops/{id}/admin-password` (status read over the in-cluster Service first; 409

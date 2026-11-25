@@ -210,20 +210,29 @@ stable release that is at least two weeks old.
     the current Wallet and the Shop, in that order, with labels `shophub.io/owner`,
     `shophub.io/shop` and `app.kubernetes.io/managed-by: shophub`.
   - For records in state `Deleting`, it deletes the Shop, then the Wallet(s) and the
-    DiscordChannel. Once all are gone it removes the record.
-  - It lists `managed-by=shophub` resources and deletes Wallets that no record references (wallet
-    switch leftovers, interrupted creates).
-  - Only one replica reconciles at a time, using a PostgreSQL advisory lock.
+    DiscordChannel, each by name from the record. Once all are gone it removes the record.
+  - It never lists or selects cluster objects. Old Wallet generations are deleted by name
+    (`<id>-w1` up to the one before the current) after a wallet switch. An object without a
+    record, even with ShopHub's labels, is never touched (FR-015).
+  - An interrupted create can't leave an orphan: the record exists before any object, and the
+    next pass applies the rest.
+  - Only one replica reconciles at a time. A pass holds a transaction-level PostgreSQL advisory
+    lock (`pg_try_advisory_xact_lock`), which is released on commit, rollback or a lost
+    connection; a replica that can't get it skips the pass.
 - **Idempotency**:
   - Create inserts the record with a unique `(owner_id, lower(trim(display_name)))` constraint,
     under a row lock on the owner. A double submit or retry with the same name and settings gets
     the existing shop; the same name with other settings gets 409 (data-model.md `shops`).
-  - Because SSA is idempotent, a crash between steps is finished on the next pass. A Wallet or
-    channel can never stay without its record.
+  - Because SSA is idempotent, a crash between steps is finished on the next pass, and a pass
+    with nothing to change leaves every `resourceVersion` as it was. A Wallet or channel can
+    never stay without its record.
 - **Rationale**: one loop gives creation, drift repair, retries and cleanup together; no
   per-request distributed transaction.
 - **Alternatives**: create resources synchronously in the request (partial failures need
   compensation code); watch-based informer (more code for a 30 s target).
+- **Superseded**: an earlier draft listed `managed-by=shophub` objects and pruned Wallets
+  without a record. That was dropped, because ShopHub selects nothing by label (T014): a pruning
+  mistake could reach objects ShopHub doesn't own.
 
 ## R9 — Naming (FR-007, FR-009, FR-018)
 
