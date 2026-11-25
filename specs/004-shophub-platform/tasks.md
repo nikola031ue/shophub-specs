@@ -169,9 +169,12 @@ Two notes for quickstart users on Windows:
     throwaway pod in `default` the shop Service times out (000); from the ShopHub app pod
     `/api/shop` answers 200; through Traefik 200. The policy's ShopHub peer carries the pod
     selector. Deployment env `TRUSTED_PROXY_HOST=traefik-proxies.traefik.svc.cluster.local`
-    (honoured from shop 0.2.0, 1C). Not checked live: a non-ShopHub pod inside `shophub` (none
-    exists, and adding one would be a hand change outside a throwaway namespace); covered by
-    unit and envtest.
+    (honoured from shop 0.2.0, 1C).
+  - Pod selector check (2026-11-25, maintainer-approved): temporary Shop `np-check` in `shops`;
+    a throwaway pod in `shophub` without ShopHub labels (`kubectl run --rm`, label
+    `purpose=np-probe`) timed out against `http://np-check.shops.svc/api/shop` (000 after 5 s),
+    while the ShopHub app pod got 200. The Shop, its DiscordChannel and Wallet were then deleted
+    through the operator; `shops` is empty again.
   - Cleanup through the operator: both Shops, both DiscordChannels and both Wallets deleted;
     `shops` is empty; Discord shows no `p1b-*` channels, only `platform-alerts`.
 
