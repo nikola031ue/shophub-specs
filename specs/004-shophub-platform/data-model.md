@@ -98,7 +98,11 @@ They are applied with field manager `shophub`.
 Read only (never written by ShopHub):
 
 - Shop `.status` (`conditions[Ready]`, `url`, `readyReplicas`);
-- Secret `<id>-admin` key `password`, only for FR-016.
+- Secret `<id>-admin` key `password`, only for FR-016. RBAC allows `get` on any Secret name in
+  `shops`; reading only `<id>-admin` is enforced by the gateway (contracts/delivery.md).
+
+Deletes name each object exactly, from the shop record: Shop `<id>`, DiscordChannel `<id>`, and
+Wallets `<id>-w1` … `<id>-w<wallet_generation>`. Never a label selector or a collection delete.
 
 ## Derived resources added by shop-operator 0.3.0 (owned by the Shop)
 

@@ -316,7 +316,7 @@ the operator).
     `shops.state`, `shops.updated_at`), `data_protection_keys`, as script `002_panel.sql`
     (`001_signin_lockouts.sql` and the migration runner came with Phase 2);
   - Testcontainers PostgreSQL fixture in `tests/ShopHub.Api.Tests/Integration/Postgres/`.
-- [ ] T014 Kubernetes seam in `shophub/src/ShopHub.Api/Shops/`:
+- [X] T014 Kubernetes seam in `shophub/src/ShopHub.Api/Shops/`:
   - `IKubeGateway` + `KubeGateway` (official `KubernetesClient`): server-side apply with field
     manager `shophub`, delete, read Shop status, read Secret `<id>-admin` key `password`;
   - Testcontainers k3s fixture in `tests/ShopHub.Api.Tests/Integration/K3s/` loading the CRDs from
@@ -324,6 +324,19 @@ the operator).
   - tests: apply/delete/status round trip; CRD validation errors surface; the ServiceAccount is
     refused Secrets outside `shops`, kinds it doesn't own, and creating or changing a Secret or a
     Deployment inside `shops` (SC-007 for ShopHub).
+
+- T014 done: shophub PR #3 (branch `004-kube-gateway`). `KubeGateway` (KubernetesClient 21.0.8):
+  server-side apply with field manager `shophub`, Shop status, `<id>-admin` password, deletes one
+  object at a time by names derived from the record (Shop, DiscordChannel, Wallets
+  `-w1`…`-w<generation>`), never by label selector (maintainer's rule). k3s v1.36.1 via
+  Testcontainers with the CRDs vendored from chart `shop-operator` 0.4.0
+  (`tests/.../K3s/Manifests/`) and the delivery.md Role on a test ServiceAccount:
+  SubjectAccessReview for every grant and refusal, real 403s, and the gateway's requests
+  recorded (no selectors, no collection deletes, only Secret read `GET …/secrets/<id>-admin`).
+  Finding: RBAC can't restrict `get secrets` to `<id>-admin` (`resourceNames` needs fixed names),
+  so a known name like `<id>-db-app` is readable by the ServiceAccount; the gateway is the
+  restriction, recorded in contracts/delivery.md. 127 tests passing (38 on k3s).
+- The chart task must render the same Role as `tests/.../K3s/Manifests/shophub-rbac.yaml`.
 
 **Checkpoint**: app starts against PostgreSQL; gateway proven against a real API server.
 
@@ -358,8 +371,11 @@ the operator).
     account Y from address A**; 50 across addresses lock X but not Y; **no enumeration**: an
     existing-email registration and a new one return identical status, headers (no
     `Set-Cookie` session) and body, and an unknown-email sign-in and a wrong-password sign-in
-    return identical status and body; for both pairs the median time over 20 requests each is
-    within a factor of 2 (both paths do one PBKDF2 run).
+    return identical status and body. Timing, robust against CI noise: the assertion is on hash
+    cost, not wall clock. A counting `IPasswordHasher` wrapper registered in the test host shows
+    every path does exactly one PBKDF2 operation (hash or verify, same iteration count): new and
+    existing registration, wrong password and unknown email. Wall clock is only a coarse guard:
+    the median over 20 requests each is within a factor of 5.
 - [ ] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
   sign-in pages (after a 202 registration the page signs in with the same credentials; a 401
   there shows "If you already have an account, sign in with its password"), XSRF interceptor,
