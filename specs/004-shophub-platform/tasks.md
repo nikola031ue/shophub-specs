@@ -118,7 +118,7 @@ Two notes for quickstart users on Windows:
     (research R4), leader-election Role unchanged; ClusterRole/Binding removed;
   - values `shopsNamespace`, `shopDomain`, `ingressClassName`, `trustedProxyHost`,
     `shophubNamespace` wired to the flags; chart README and lint/template CI pass.
-- [ ] T006 [US1] Release and roll out 1B:
+- [X] T006 [US1] Release and roll out 1B:
   - operator PR → **ask before merge** → tag `v0.3.0` → image;
   - helm-charts PR (chart 0.4.0, appVersion 0.3.1) → **ask before merge** → publish;
   - kube-state PR (`clusters/local/shop-operator/helm.yaml` 0.4.0; `shophub-discord`
@@ -126,7 +126,8 @@ Two notes for quickstart users on Windows:
     Scenario 1 step 1 (a, b) while 0.2.1 runs → **ask before merge** → `./bring-up.sh`;
   - live: quickstart Scenario 1 steps 2–4 (two hand-made test Shops in `shops`) and Scenario 2
     (`kubectl auth can-i` matrix, no ClusterRoleBinding, NetworkPolicy blocks `default` and allows
-    `traefik`/`shophub`). Keep the test Shops for 1C.
+    `traefik`/`shophub`). Test Shops deleted afterwards (maintainer's decision, 2026-11-25); 1C
+    creates its own.
 
 **Progress 1B (2026-11-24)**:
 - The platform alerts DiscordChannel moves to the operator namespace (decision recorded in
@@ -146,6 +147,33 @@ Two notes for quickstart users on Windows:
   `v0.3.1`, image published.
 - T005 done: helm-charts PR #8 merged (`4bb9e0a`), chart `shop-operator` 0.4.0 with appVersion
   0.3.1 published; CI install job green.
+- T006 done:
+  - Hand migration while operator 0.2.1 ran: `platform-alerts` in `shophub` deleted in under 5 s
+    (the finalizer removes itself only after the Discord delete succeeds); nothing named
+    `platform-alerts` left in `shophub`; `helm uninstall shophub-discord -n shophub`.
+  - kube-state PR #10 merged (`7a7615a`); bring-up: `1 installed, 1 upgraded, 4 unchanged`
+    (shop-operator 0.4.0 upgraded, image 0.3.1; shophub-discord installed in
+    `shop-operator-system`). `platform-alerts` Ready there with a new webhook Secret within
+    15 s; Discord shows exactly one `platform-alerts` channel. Namespace `shops` created with
+    label `shophub.io/shops=true`.
+  - Scenario 1: test Shops `p1b-a`, `p1b-b` (registered Wallets, own DiscordChannels, database
+    light) Ready within 30 s, status `url` `https://p1b-{a,b}.shops.localhost`. From Windows:
+    HTTPS 200 with the certificate verified (Schannel `ssl_verify_result=0`), `http://` → 301 to
+    `https://`, `/api/shop` returns `Phase 1B A` / `Phase 1B B`. Deleting `p1b-a`: its host
+    returned 404 after 1 s while `p1b-b` kept 200. A dotted name (`dot.shop`) is rejected by the
+    API server.
+  - Scenario 2: `can-i get secrets` yes only in `shops` and `shop-operator-system`; no in
+    `shophub`, `cnpg-system`, `traefik`, `default`; token by name yes; no cluster-wide list of
+    Shops or namespaces; no ClusterRole or ClusterRoleBinding (Roles: manager in `shops`,
+    platform-channels and leader-election in `shop-operator-system`). NetworkPolicy: from a
+    throwaway pod in `default` the shop Service times out (000); from the ShopHub app pod
+    `/api/shop` answers 200; through Traefik 200. The policy's ShopHub peer carries the pod
+    selector. Deployment env `TRUSTED_PROXY_HOST=traefik-proxies.traefik.svc.cluster.local`
+    (honoured from shop 0.2.0, 1C). Not checked live: a non-ShopHub pod inside `shophub` (none
+    exists, and adding one would be a hand change outside a throwaway namespace); covered by
+    unit and envtest.
+  - Cleanup through the operator: both Shops, both DiscordChannels and both Wallets deleted;
+    `shops` is empty; Discord shows no `p1b-*` channels, only `platform-alerts`.
 
 **Checkpoint 1B**: shops reachable at `https://<shop>.shops.localhost`; R-1 closed (SC-007 for
 the operator).
