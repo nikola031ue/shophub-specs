@@ -516,12 +516,17 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - reconciler deletes Shop, Wallet and DiscordChannel by name from the record (never by label
     selector), removes the row once all are gone; repeat-safe;
   - k3s, API and isolation tests for DELETE.
+  - **Live check (maintainer, 2026-11-25):** the test shop the maintainer creates in the browser
+    after the T024 rollout stays until T022 ships; no manual database edits and no hand deletes
+    meanwhile. Deleting that shop through the panel, then confirming its Shop, every Wallet
+    generation and its DiscordChannel are gone from namespace `shops`, the Discord channel is
+    gone, and the record has left the list, is T022's live check.
 
 ---
 
 ## Phase 8: Release (FR-027, FR-028, FR-029)
 
-- [ ] T023 Chart `helm-charts/charts/shophub` 0.2.0 per contracts/delivery.md (deployment,
+- [X] T023 Chart `helm-charts/charts/shophub` 0.2.0 per contracts/delivery.md (deployment,
   service, ingress, serviceaccount, `rbac.yaml` Role + RoleBinding in `shopsNamespace` only,
   `database.yaml` CNPG `shophub-db`, `networkpolicy.yaml` (ShopHub app pods accept TCP 8080 only
   from the Traefik pods in namespace `traefik`; the database pods stay reachable from the app),
@@ -580,7 +585,16 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - GitHub returned intermittent 500/502 errors on merge, tag push and re-run (about
     15:40–16:05 UTC). Each was retried and verified; nothing was half-applied.
   - kube-state PR #12 (branch `004-shophub-0.2.0`): chart 0.2.0, image 0.1.0, host and namespaces.
-    All checks green, including `e2e`. Merge waits for the maintainer.
+    All checks green, including `e2e`. Merged as `05791e7` (approved).
+  - `./bring-up.sh` on docker-desktop: only `shophub` upgraded (0.1.0 placeholder to chart
+    0.2.0), 5 releases unchanged, 71 s. Within a minute: 2/2 pods ready, CNPG `shophub-db`
+    healthy, Ingress `shophub.localhost`, NetworkPolicy, Role and RoleBinding in `shops`, no
+    ClusterRoleBinding.
+  - Checked: `https://shophub.localhost` 200 with a verified certificate, `/healthz` ok, plain
+    HTTP redirects to HTTPS, `/api/shops` without a session 401. `can-i` as the ServiceAccount:
+    create shops and get secrets in `shops` yes; list secrets, writes in `default`, secrets in
+    `shophub` no.
+  - Waits for the maintainer's browser click-through (register, create one shop, open it).
 - [ ] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
   15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
   secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
