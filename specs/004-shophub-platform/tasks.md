@@ -93,13 +93,15 @@ Two notes for quickstart users on Windows:
     `<shop>.<shop-domain>`, path `/` Prefix → Service `<shop>:80`, no `tls` block);
   - new `networkpolicy.go`: `NetworkPolicy <shop>` selecting `app.kubernetes.io/instance=<shop>`,
     ingress TCP 80 only from namespaces `traefik` and the ShopHub namespace;
-  - `resources.go`: `ShopParams` gains domain, ingress class, trusted CIDRs, ShopHub namespace;
-    Deployment env `TRUSTED_PROXY_CIDRS`; status URL helper `https://<shop>.<shop-domain>`;
+  - `resources.go`: `ShopParams` gains domain, ingress class, trusted proxy host, ShopHub
+    namespace; Deployment env `TRUSTED_PROXY_HOST` (research R5, revised 2026-11-25); status URL helper `https://<shop>.<shop-domain>`;
   - unit tests in `shop-operator/internal/resources/*_test.go`.
 - [X] T004 [US1] Controller and manager in `shop-operator/`:
   - `cmd/main.go`: flags `--watch-namespace` (cache restricted to it; DiscordChannels and their
     Secrets also cached in the operator namespace, research R4), `--shop-domain`,
-    `--ingress-class`, `--ingress-namespace`, `--trusted-proxy-cidrs`, `--shophub-namespace`;
+    `--ingress-class`, `--ingress-namespace`, `--trusted-proxy-host`, `--shophub-namespace`;
+  - `api/v1alpha1/shop_types.go`: CRD rule rejecting a Shop name with a dot (FR-021), with an
+    envtest validation case;
   - `internal/controller/shop_controller.go`: apply Ingress and NetworkPolicy (owned),
     `Owns(&Ingress{}, &NetworkPolicy{})`, `status.url` HTTPS; Discord token read by name with the
     uncached reader from the operator namespace;
@@ -114,7 +116,7 @@ Two notes for quickstart users on Windows:
   - `templates/namespace.yaml` (`shops`, label `shophub.io/shops: "true"`);
   - Role + RoleBinding in `shopsNamespace`, Role `…-platform-channels` in the release namespace
     (research R4), leader-election Role unchanged; ClusterRole/Binding removed;
-  - values `shopsNamespace`, `shopDomain`, `ingressClassName`, `trustedProxyCIDRs`,
+  - values `shopsNamespace`, `shopDomain`, `ingressClassName`, `trustedProxyHost`,
     `shophubNamespace` wired to the flags; chart README and lint/template CI pass.
 - [ ] T006 [US1] Release and roll out 1B:
   - operator PR → **ask before merge** → tag `v0.3.0` → image;
@@ -141,13 +143,14 @@ the operator).
 ### 1C — shop `v0.2.0` (release: tag → kube-state)
 
 - [ ] T007 [P] [US1] Forwarded headers, cookies and order limit in `shop/src/Shop.Api/`:
-  - `Settings.cs`: optional `TRUSTED_PROXY_CIDRS` (comma-separated); invalid CIDR stops start with
-    a message naming the variable;
-  - new `ForwardedHeaders.cs`: `XForwardedFor | XForwardedProto`, `KnownNetworks` from the
-    setting only, `ForwardLimit = 1`; unset → headers ignored; wired in `Program.cs`;
+  - `Settings.cs`: optional `TRUSTED_PROXY_HOST` (research R5);
+  - new `ForwardedHeaders.cs`: `XForwardedFor | XForwardedProto`, trusted proxies are the
+    addresses of `TRUSTED_PROXY_HOST` resolved by DNS every 30 s (same approach as ShopHub
+    T013), `ForwardLimit = 1`; unset or failed lookup → no proxy trusted; wired in `Program.cs`;
   - session and anti-forgery cookies `CookieSecurePolicy.Always`;
   - order rate limit keyed by the resulting client address (`Endpoints/Public.cs`);
-  - tests: header honoured from a trusted peer, ignored from an untrusted one; two addresses get
+  - tests: header honoured from a resolved Traefik address, ignored from any other peer
+    (including one inside the pod network, i.e. a ShopHub pod) and when the lookup fails; two addresses get
     separate order limits; `Secure` flag set.
 - [ ] T008 [P] [US1] Admin lockout per (account, client address) with shop-wide ceiling (FR-023),
   both stores, per data-model.md "shop app 0.2.0 storage additions":

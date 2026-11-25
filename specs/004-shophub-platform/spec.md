@@ -338,7 +338,9 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
 - **FR-021**: The shop-operator MUST give every Shop its own address by creating routing for it
   as an owned child of the Shop. The address MUST be derived from the Shop's identity and a
   platform domain setting, appear in the Shop's status, and stop answering when the Shop is
-  deleted. The CRDs MUST NOT change for this.
+  deleted. The CRD schemas MUST NOT change for this. The one allowed CRD change is a validation
+  rule (decided 2026-11-25): a Shop name MUST NOT contain a dot, so its address stays a single
+  label under the platform domain and is covered by the wildcard certificate.
 - **FR-022**: The shop app MUST take the client address from forwarded headers only when the
   request comes from the platform entry point. Otherwise it uses the direct peer address.
 - **FR-023**: The shop app's admin lockout MUST apply per (account, client address): 5 failed
@@ -459,7 +461,8 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
     `kube-state` (FR-020);
   - the shared shops namespace as platform state (FR-018);
   - **shop-operator 0.3.0**: per-Shop routing and address (FR-021), plus a namespaced Role in the
-    shops namespace instead of the ClusterRole (FR-026, 002 R-1). CRDs unchanged;
+    shops namespace instead of the ClusterRole (FR-026, 002 R-1). CRD schemas unchanged; one
+    validation rule rejects dotted Shop names (FR-021);
   - **shop 0.2.0**: trusted forwarded headers, per-(account, address) lockout with a shop-wide ceiling,
     per-client order limit, always-Secure cookie (FR-022–FR-025, 003 D-1);
   - chart and `kube-state` updates for each.

@@ -87,15 +87,24 @@ stable release that is at least two weeks old.
 ## R5 — Real client address in shops (FR-022)
 
 - **Decision**:
-  - The operator injects **`TRUSTED_PROXY_CIDRS`** (chart value, default the Docker Desktop pod
-    CIDR `10.244.0.0/16`, verified at task time from the node's `podCIDR`).
-  - shop 0.2.0 enables ASP.NET Core `ForwardedHeaders` (`XForwardedFor | XForwardedProto`) with
-    exactly those `KnownNetworks`, `ForwardLimit = 1`, and no `KnownProxies` defaults.
+  - **Revised 2026-11-25 (before the 0.3.0 release)**: forwarded headers are trusted **only from
+    Traefik**, the same rule as ShopHub (R7). The operator injects **`TRUSTED_PROXY_HOST`**
+    (`--trusted-proxy-host`, chart value `trustedProxyHost`, default
+    `traefik-proxies.traefik.svc.cluster.local`, the headless Service from 1A). shop 0.2.0
+    resolves it by DNS every 30 s and honours `X-Forwarded-For`/`-Proto` only when the TCP peer
+    is one of those addresses, `ForwardLimit = 1`. Unset or a failed lookup trusts nobody (fail
+    closed: the peer address is used, which only makes the lockout stricter).
   - Requests from any other peer keep their peer address.
   - Every Shop also gets an owned **NetworkPolicy**: ingress to the app pods only from pods in
-    namespace `traefik` and in namespace `shophub` (for the FR-016 status read), port 80.
-- **Rationale**: the app can't know Traefik's pod IPs, but with the NetworkPolicy, anything in the
-  pod CIDR that reaches the app is the entry point or ShopHub, both platform code.
+    namespace `traefik` and in namespace `shophub`, port 80. `shophub` is admitted for one
+    concrete feature, the FR-016 hand-off: ShopHub reads `GET /api/shop` over the in-cluster
+    Service. It is an untrusted peer: its forwarded headers are ignored.
+- **Rationale**: the first design trusted the whole pod CIDR (`TRUSTED_PROXY_CIDRS=10.244.0.0/16`)
+  and relied on the NetworkPolicy. But the policy admits `shophub`, whose pods are in that CIDR,
+  so a ShopHub pod (or anything running in that namespace) could set `X-Forwarded-For` to a new
+  address on every attempt. With the lockout keyed on (account, address), that is unlimited
+  guessing, bounded only by the shop-wide ceiling. Trusting the Traefik pod addresses by DNS
+  closes it without Kubernetes permissions or a shared secret.
 - **Enforcement (verified 2026-11-24)**: Docker Desktop Kubernetes v1.36.1 (kind-based, CNI
   `kindnetd` v20260528) enforces NetworkPolicies. In a throwaway namespace, a deny-all policy
   blocked pod-to-pod HTTP, a `podSelector` allow rule admitted only the labelled client, and
@@ -167,8 +176,8 @@ stable release that is at least two weeks old.
   - Registration answers 409 "email already registered". It is unavoidable for a sign-up form,
     and it is rate-limited per client address (10 per hour).
 - **Alternatives**: ASP.NET Core Identity with EF Core (an ORM and more tables than needed);
-  OIDC provider (out of scope; no external IdP). For the proxy list: the pod CIDR as for shops
-  (any pod could forge the header to ShopHub without a policy); reading Traefik pods through the
+  OIDC provider (out of scope; no external IdP). For the proxy list: the pod CIDR (any pod the
+  policy admits could forge the header; shops dropped it too, R5); reading Traefik pods through the
   Kubernetes API (needs RBAC outside `shops`, against FR-017).
 
 ## R8 — Shop record and reconciler (FR-014, FR-015)

@@ -99,7 +99,8 @@ Read only (never written by ShopHub):
 | `NetworkPolicy` | `<shop>` | Pods `app.kubernetes.io/instance=<shop>`: ingress only from namespaces `traefik` and `shophub` (by `kubernetes.io/metadata.name`), TCP 80 |
 
 Shop `status.url` becomes `https://<shop>.<shop-domain>`. The Deployment gets env
-`TRUSTED_PROXY_CIDRS` (from `--trusted-proxy-cidrs`).
+`TRUSTED_PROXY_HOST` (from `--trusted-proxy-host`, research R5). The Shop CRD rejects a
+`metadata.name` containing a dot (FR-021).
 
 ## shop app 0.2.0 storage additions
 

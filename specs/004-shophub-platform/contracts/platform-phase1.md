@@ -26,7 +26,7 @@ Delivered and deployed before any ShopHub app work (spec Dependencies). CRDs
 | `--watch-namespace` | `shopsNamespace` | `shops` | The only namespace reconciled and cached |
 | `--shop-domain` | `shopDomain` | `shops.localhost` | Host suffix: `<shop>.<shop-domain>` |
 | `--ingress-class` | `ingressClassName` | `traefik` | `spec.ingressClassName` of every Shop Ingress |
-| `--trusted-proxy-cidrs` | `trustedProxyCIDRs` | `10.244.0.0/16` | Passed to the app as `TRUSTED_PROXY_CIDRS` |
+| `--trusted-proxy-host` | `trustedProxyHost` | `traefik-proxies.traefik.svc.cluster.local` | Passed to the app as `TRUSTED_PROXY_HOST` (research R5) |
 | `--ingress-namespace` | `ingressNamespace` | `traefik` | First namespace allowed by the Shop NetworkPolicy |
 | `--shophub-namespace` | `shophubNamespace` | `shophub` | Second namespace allowed by the Shop NetworkPolicy |
 
@@ -36,8 +36,10 @@ Delivered and deployed before any ShopHub app work (spec Dependencies). CRDs
    No `tls` block; the entry point's default certificate covers the host.
 2. `NetworkPolicy <shop>`: selects the Shop's pods. It allows ingress on TCP 80 only from
    namespaces `traefik` and `shophubNamespace`.
-3. Deployment env `TRUSTED_PROXY_CIDRS`.
+3. Deployment env `TRUSTED_PROXY_HOST`.
 4. `status.url = https://<shop>.<shop-domain>`.
+
+The Shop CRD gains one validation rule: `metadata.name` must not contain a dot (FR-021).
 
 Existing 0.2.x Shops are updated by reconciliation alone, if any exist in `shops`.
 
@@ -75,7 +77,7 @@ release in the new namespace, and 0.3.0 creates a new channel there.
 
 | Change | Behaviour |
 |--------|-----------|
-| `TRUSTED_PROXY_CIDRS` (optional, comma-separated CIDRs) | `X-Forwarded-For` and `X-Forwarded-Proto` are honoured only when the TCP peer is inside one of these networks; `ForwardLimit = 1`. Unset or empty means forwarded headers are ignored. Invalid CIDRs stop the start with a message naming the variable |
+| `TRUSTED_PROXY_HOST` (optional DNS name) | Resolved every 30 s. `X-Forwarded-For` and `X-Forwarded-Proto` are honoured only when the TCP peer is one of its addresses (the Traefik pods); `ForwardLimit = 1`. Unset or a failed lookup means no proxy is trusted. Other admitted peers (ShopHub) can't set the client address (research R5) |
 | Admin lockout | Per (account, client address) 5 failures / 15 min, plus a shop-wide ceiling of 50 failures / 15 min (data-model.md). 429 with `Retry-After` |
 | Order rate limit | Unchanged rule (10/min); the key is now the real client address |
 | Cookies | Session and anti-forgery cookies always `Secure` |
