@@ -17,6 +17,7 @@ non-`/api` paths return `index.html`. JSON only.
 | POST | `/api/register` | `{email, password}` | 201 + session cookie · 400 validation (`email` at most 254 characters with one `@`, `password` 12–200 characters) · 409 email already registered · 429 more than 10 registrations per hour from one client address |
 | POST | `/api/signin` | `{email, password}` | 204 + session cookie · 401 wrong email or password (same message for both) · 429 locked (`Retry-After`) |
 | POST | `/api/signout` | – | 204; this session ends; a copied cookie gets 401 afterwards |
+| POST | `/api/password` | `{currentPassword, newPassword}` | 204; every other session of this owner ends, this one stays (FR-002) · 400 validation (`newPassword` 12–200 characters) · 401 wrong current password (counts towards the lockout like a failed sign-in) |
 
 ## Shops (FR-005–FR-016)
 

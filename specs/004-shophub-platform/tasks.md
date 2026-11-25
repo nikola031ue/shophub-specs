@@ -264,15 +264,27 @@ the operator).
 
 ## Phase 2: ShopHub Setup
 
-- [ ] T011 Scaffold `shophub/` per contracts/delivery.md: `global.json`, `ShopHub.slnx`,
+- [X] T011 Scaffold `shophub/` per contracts/delivery.md: `global.json`, `ShopHub.slnx`,
   `src/ShopHub.Api` (Program, `SecurityHeaders.cs`, `ErrorHandling.cs`, `/healthz`, SPA fallback),
   `src/ShopHub.Web` (Angular 22, router, HttpClient), `tests/ShopHub.Api.Tests` (xUnit v3,
   Microsoft.Testing.Platform), `Dockerfile` (node → sdk → chiseled aspnet, non-root, 8080),
   `.gitignore`, `.dockerignore`.
-- [ ] T012 CI in `shophub/.github/workflows/ci.yaml` (mirrors shop: `lint`, `test`, `release`
+- [X] T012 CI in `shophub/.github/workflows/ci.yaml` (mirrors shop: `lint`, `test`, `release`
   with strict SemVer, tag-on-main and existing-version guards, SHA-pinned actions,
   `permissions: {}`); first PR; **ask before** setting branch protection (required `lint` +
   `test`, strict, linear, squash only, delete branch on merge).
+
+**Progress Phase 2 (2026-11-25)**:
+- T011–T012: shophub PR #1 (branch `004-scaffold`). Scaffold, Dockerfile (port 8080, non-root
+  uid 1654, smoke-tested) and CI copied from the shop repo.
+- Ported from shop 0.2.0 with their tests and adapted to many accounts (maintainer's request):
+  trusted-proxy resolver and middleware; lockout per (account, address) plus a per-account
+  ceiling (maintainer's choice) with the burst fix, PostgreSQL store `signin_lockouts` and the
+  schema migrator; session check against per-session rows (`ISessionStore`), password change
+  ending the owner's other sessions; cookie policy; registration rate limit. FR-002, FR-003,
+  R7, data-model.md and panel-api.md (`POST /api/password`) amended. 60 .NET tests (PostgreSQL
+  via Testcontainers), `ng lint`/`ng test`/`ng build` pass.
+- Branch protection for `shophub-spec` not set yet: asked separately (T012).
 
 ---
 
@@ -281,19 +293,18 @@ the operator).
 - [ ] T013 Settings, startup and schema in `shophub/src/ShopHub.Api/`:
   - `Settings.cs`: `DATABASE_URL`, `SHOPS_NAMESPACE`, `SHOP_DOMAIN`, `TRUSTED_PROXY_HOST`,
     `MAX_SHOPS_PER_OWNER` (contracts/delivery.md);
-  - `ForwardedHeaders.cs`: trusted proxies limited to Traefik (research R7): the IPs of
+  - `ForwardedHeaders.cs` (ported in Phase 2; T013 only wires it with the other settings): trusted proxies limited to Traefik (research R7): the IPs of
     `TRUSTED_PROXY_HOST` resolved by DNS every 30 s; `X-Forwarded-For`/`-Proto` honoured only
     when the TCP peer is one of them, `ForwardLimit = 1`; unset or lookup failure means trust
     nobody (fail closed); unit tests with a fake resolver (trusted peer, other pod-network peer,
     failed lookup, address list change);
   - `Storage/Scripts/001_initial.sql` with the tables of data-model.md: `owners` (`owners.id`,
     `owners.email`, `owners.email_normalized` UNIQUE, `owners.password_hash`), `owner_sessions`
-    (`owner_sessions.expires_at`), `signin_failures` (`signin_failures.email_normalized`,
-    `signin_failures.address`, `signin_failures.at`; index on `(email_normalized, address, at)`:
-    the lockout key is (account, client address), never the address alone), `shops` (`shops.id`, `shops.owner_id`,
+    (`owner_sessions.expires_at`), `shops` (`shops.id`, `shops.owner_id`,
     `shops.display_name`, `shops.display_name_key` with UNIQUE `(owner_id, display_name_key)`,
     `shops.availability`, `shops.database`, `shops.wallet_address`, `shops.wallet_generation`,
-    `shops.state`, `shops.updated_at`), `data_protection_keys`; migration runner as in shop;
+    `shops.state`, `shops.updated_at`), `data_protection_keys`, as script `002_panel.sql`
+    (`001_signin_lockouts.sql` and the migration runner came with Phase 2);
   - Testcontainers PostgreSQL fixture in `tests/ShopHub.Api.Tests/Integration/Postgres/`.
 - [ ] T014 Kubernetes seam in `shophub/src/ShopHub.Api/Shops/`:
   - `IKubeGateway` + `KubeGateway` (official `KubernetesClient`): server-side apply with field
@@ -315,18 +326,23 @@ the operator).
 **Independent test**: quickstart Scenario 5.
 
 - [ ] T015 [US2] Accounts backend in `shophub/src/ShopHub.Api/{Accounts,Auth,Endpoints/Accounts.cs}`:
-  - `GET /api/session`, `POST /api/register`, `/api/signin`, `/api/signout`;
+  - `GET /api/session`, `POST /api/register`, `/api/signin`, `/api/signout`, `/api/password`;
   - validation per data-model.md `owners` (email, password length); `PasswordHasher` into
     `owners.password_hash`; duplicate by `owners.email_normalized` → 409;
-  - sessions per `owner_sessions` (8 h, row checked on every request, deleted on sign-out);
-  - lockout keyed by (account, client address): `signin_failures` `(email_normalized, address)`,
-    429 + `Retry-After`; rate limits stay per client address: registration 10/hour;
+  - sessions per `owner_sessions` (8 h, row checked on every request, deleted on sign-out; a
+    password change deletes the owner's other rows): a PostgreSQL `ISessionStore` for the Phase 2
+    `Auth/Sessions.cs`;
+  - lockout: wire the Phase 2 `SignInLockout` + `PostgresLockoutStore` (data-model.md
+    `signin_lockouts`, per (account, address) plus the per-account ceiling), 429 +
+    `Retry-After`; rate limits stay per client address: registration 10/hour (Phase 2
+    `RateLimits.Registration`);
   - session cookie `Secure`, `HttpOnly`, `SameSite=Strict` (FR-004); XSRF cookie/header;
     Data-Protection keys in `data_protection_keys`;
   - tests (unit + Postgres + `WebApplicationFactory`): FR-001–FR-004 including the three cookie
-    flags, replayed cookie after sign-out → 401, lockout from one address does not block
-    the same account from another, and **5 failures for account X from address A don't lock
-    account Y from address A**.
+    flags, replayed cookie after sign-out → 401, **after a password change a stolen cookie of
+    another session → 401 while the current session stays**, lockout from one address does not
+    block the same account from another, and **5 failures for account X from address A don't lock
+    account Y from address A**; 50 across addresses lock X but not Y.
 - [ ] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
   sign-in pages, XSRF interceptor, route guard, sign-out; `ng test`.
 

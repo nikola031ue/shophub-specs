@@ -159,14 +159,25 @@ stable release that is at least two weeks old.
 
 ## R7 — ShopHub accounts and sessions (FR-001–FR-005)
 
-- **Decision**: reuse the `shop` patterns.
+- **Decision**: reuse the `shop` patterns. Since 2026-11-25 (Phase 2) the code itself is ported
+  from shop 0.2.0 with its tests: trusted-proxy resolver, lockout store, session check, cookie
+  policy, rate limiting.
   - `PasswordHasher` (PBKDF2) and cookie authentication: 8 h, not sliding, `Secure`, HttpOnly,
     SameSite=Strict.
   - Antiforgery via the `XSRF-TOKEN` cookie and the `X-XSRF-TOKEN` header.
   - Data-Protection keys in the database.
   - A per-session id in the cookie, checked against `owner_sessions`, so sign-out ends only that
     session and a copied cookie stops working.
-  - Lockout counted per (owner, client address): 5 failures in 15 min.
+  - Lockout counted per (owner, client address): 5 failures in 15 min, as fixed-window counters
+    in `signin_lockouts` (shop 0.2.0's store). Plus a per-account ceiling: 50 failures for one
+    owner across addresses in 15 min (maintainer's choice, 2026-11-25). Rejected: no ceiling
+    (a botnet gets 5 guesses per address per 15 min against one account) and a global ceiling
+    as in the shop (one attacker could lock out every owner). Accepted trade-off: someone with
+    10 or more addresses can lock one victim's account for 15 min. Attempts while either scope
+    is locked count nowhere (shop 0.2.0 burst fix).
+  - Sessions: the shop checks one admin session version on every request; ShopHub checks a
+    per-session row (`owner_sessions`) instead. Sign-out deletes that row; a password change
+    deletes every other row of the owner (FR-002).
   - Forwarded headers trusted **only from Traefik**, stricter than shops: ShopHub resolves the
     headless Service `traefik-proxies.traefik.svc.cluster.local` (setting `TRUSTED_PROXY_HOST`)
     by DNS every 30 s and honours `X-Forwarded-For`/`-Proto` only when the TCP peer is one of

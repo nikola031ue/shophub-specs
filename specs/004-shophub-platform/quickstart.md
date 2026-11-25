@@ -96,7 +96,7 @@ After the `shophub` kube-state PR: run `./bring-up.sh`. Expected:
 - In every other namespace it lists nothing beyond discovery.
 - From a throwaway pod in `default`, `curl http://shophub.shophub.svc` fails (NetworkPolicy). A
   sign-in through Traefik with a forged `X-Forwarded-For` is recorded with the real client
-  address in `signin_failures`.
+  address in `signin_lockouts`.
 
 **Required full run (FR-028, SC-009)**: reset the Docker Desktop cluster, recreate the hand-made
 Secrets (TLS, Discord token), run `./bring-up.sh` and time it to a working

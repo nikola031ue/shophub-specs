@@ -249,10 +249,15 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
   12 characters. Emails are unique regardless of letter case. No email verification is sent
   (Assumptions).
 - **FR-002**: Registered owners MUST be able to sign in and sign out. A session lasts at most 8
-  hours. Sign-out ends that session, and a copied cookie stops working.
+  hours. Sign-out ends that session, and a copied cookie stops working. Changing the password
+  MUST end every other session of that owner, keeping only the session that made the change
+  (decided 2026-11-25); a stolen cookie of another session stops working.
 - **FR-003**: After 5 failed sign-ins for one account from one client address within 15
   minutes, further sign-ins for that account from that address MUST be refused for 15 minutes,
-  even with the right password.
+  even with the right password. An account-wide ceiling MUST also apply (decided 2026-11-25):
+  50 failed sign-ins for one account across all addresses within 15 minutes lock that account
+  from every address for 15 minutes. Other accounts are never affected, and attempts made while
+  a lock applies don't count, so one address alone can't trigger the account-wide lock.
 - **FR-004**: Passwords MUST be stored only as salted, slow hashes. Session cookies MUST be
   Secure, HttpOnly and SameSite=Strict, and state-changing requests MUST carry an anti-forgery
   token.

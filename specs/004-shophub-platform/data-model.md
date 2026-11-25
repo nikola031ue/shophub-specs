@@ -22,18 +22,27 @@ Validation: email has one `@` and is at most 254 characters; password is 12–20
 | `owner_id` | uuid | FK `owners`, cascade delete |
 | `created_at`, `expires_at` | timestamptz | `expires_at = created_at + 8 h` (FR-002) |
 
-Sign-out deletes the row. Every request checks the row exists and hasn't expired, so a copied
-cookie stops working after sign-out.
+Sign-out deletes the row. A password change deletes every other row of the owner (FR-002). Every
+request checks the row exists and hasn't expired, so a copied cookie stops working after either.
 
-### `signin_failures`
+### `signin_lockouts`
 
 | Column | Type | Rules |
 |--------|------|-------|
-| `email_normalized` | text | |
-| `address` | inet | Real client address (R5/R7) |
-| `at` | timestamptz | Rows older than 15 min are pruned |
+| `account` | text | `owners.email_normalized` form of the email tried; rows exist for unknown emails too |
+| `address` | text | Real client address (R5/R7), or `*` for the account-wide row |
+| `failed_count` | int | Failures in the current window |
+| `failed_window_start` | timestamptz | Start of the 15 min window (first failure) |
+| `locked_until` | timestamptz | Set when a limit is reached |
 
-Locked when 5 or more rows exist for `(email_normalized, address)` within 15 min (FR-003).
+PRIMARY KEY `(account, address)`. Same fixed-window semantics as shop 0.2.0 (FR-003):
+
+- A failure increments `(account, address)` (limit **5**) and `(account, '*')` (limit **50**),
+  each within a 15 min window, unless either is locked; then nothing changes.
+- Reaching a limit sets `locked_until = now + 15 min` and resets that counter.
+- A sign-in is refused (429, `Retry-After`) while either row is locked, even with the right password.
+- A successful sign-in clears only its `(account, address)` row.
+- Rows whose window and lock are over are pruned on each failure.
 
 ### `shops` (Shop record, FR-015)
 
