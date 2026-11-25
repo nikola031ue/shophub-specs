@@ -56,6 +56,7 @@ PRIMARY KEY `(account, address)`. Same fixed-window semantics as shop 0.2.0 (FR-
 | `database` | text | `standard` \| `light`; immutable |
 | `wallet_address` | text | `^0x[0-9a-fA-F]{40}$`; mixed case must pass EIP-55 (FR-006, FR-009); stored in EIP-55 form |
 | `wallet_generation` | int | Starts at 1; +1 on every address change. Current Wallet name is `<id>-w<generation>` |
+| `oldest_wallet_generation` | int | Starts at 1; `1 ≤ oldest ≤ wallet_generation`. Lowest generation that may still exist in the cluster; generations below it are known deleted (T021, migration 003). Only the reconciler raises it, never lowers it |
 | `state` | text | `Active` \| `Deleting` |
 | `created_at`, `updated_at` | timestamptz | `updated_at` drives "needs attention" after 10 min not ready (R10) |
 
@@ -68,6 +69,11 @@ Rules:
   returns that row and inserts nothing. The same `display_name_key` with anything different is a
   duplicate name (409). The repeat check comes before the limit check.
 - `display_name` and `database` never change after insert (FR-012).
+- A change (FR-012) runs in one transaction under a row lock on the shop (`FOR UPDATE`). A
+  different `wallet_address` (compared in EIP-55 form, so letter case alone is no change) adds 1
+  to `wallet_generation`; the same address doesn't. Going back to an earlier address is a new
+  generation too, since a Wallet's address never changes. `updated_at` moves only when a value
+  changed; repeating the current values writes nothing. A `Deleting` row can't be changed.
 - Every query for an owner-facing API filters on `owner_id = @current` (FR-005). A missing row and
   another owner's row give the same 404.
 
@@ -107,6 +113,13 @@ Read only (never written by ShopHub):
 
 Deletes name each object exactly, from the shop record: Shop `<id>`, DiscordChannel `<id>`, and
 Wallets `<id>-w1` … `<id>-w<wallet_generation>`. Never a label selector or a collection delete.
+
+After a wallet change (FR-009), the reconciler's apply creates Wallet `<id>-w<wallet_generation>`
+and points the Shop at it. Only after that does it delete Wallets `<id>-w<oldest_wallet_generation>`
+… `<id>-w<wallet_generation - 1>` by name, then set `oldest_wallet_generation = wallet_generation`.
+A failed delete leaves the column as it was, so the next pass retries; a crash between the delete
+and the update only repeats deletes of names already gone. The operator keeps a Wallet while a
+Shop still uses it (002 `InUse`).
 
 ## Derived resources added by shop-operator 0.3.0 (owned by the Shop)
 

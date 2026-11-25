@@ -504,6 +504,43 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - 400 for `name`/`database`, 409 while deleting;
   - k3s test for the wallet switch order; API and isolation tests for PATCH.
 
+  Progress:
+  - **shophub PR #11** (branch `004-t021-change-config`).
+  - **PATCH:**
+    - only `availability` and `walletAddress`; `name`, `database` (even unchanged) and any
+      other field give 400 by field; `{}` is 400;
+    - repeating the current values answers 200 and writes nothing;
+    - 409 `reason: "deleting"`;
+    - another owner's shop gives the same 404 as an unknown id.
+  - **Store:** one transaction under `FOR UPDATE` on the shop row. A new address (compared in
+    EIP-55 form) takes the next generation.
+  - **Wallet cleanup:**
+    - migration `003_wallet_cleanup.sql` adds `shops.oldest_wallet_generation` (data-model.md);
+    - after the apply (new Wallet, Shop repointed), the reconciler deletes generations `oldest`
+      … `current-1` by name, then raises the column;
+    - each old Wallet is deleted once; a failed delete is retried on the next pass.
+  - **Panel:**
+    - "Change settings" sits in each shop row of the list (`src/app/shops/shop-edit.ts`, flat
+      like T020's files rather than an `edit/` folder), hidden while a shop is being deleted;
+    - name and database are shown read-only;
+    - only changed fields are sent;
+    - the wallet hint says that orders after the change go to the new address.
+  - **Tests:**
+    - unit (change validation);
+    - store: generations, row lock (6 identical concurrent changes give one generation),
+      owner, deleting;
+    - reconciler passes: order, several changes, failed delete retried;
+    - k3s: requests are exactly PATCH channel, PATCH `-w2`, PATCH Shop, DELETE `-w1`, and a
+      later pass deletes nothing;
+    - API, and PATCH added to the isolation matrix;
+    - Angular: edit form and list.
+  - **Local runs:** all .NET tests (k3s included) and 53 Angular tests pass; `dotnet format`
+    and `ng lint` are clean.
+  - **Mutation checks:**
+    - without `FOR UPDATE` the lock test fails 3 of 3 runs;
+    - deleting old Wallets before the apply fails 4 tests (3 pass, 1 k3s).
+  - Live check (quickstart Scenario 8 steps 1–2) after the next release.
+
 ---
 
 ## Phase 7: User Story 5 — Delete a shop (Priority: P2)
@@ -568,7 +605,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     against CNPG in kind, the NetworkPolicy exists, and every `can-i` assertion held.
   - helm-charts PR #9 merged as `7ac6e3c` (approved). `publish` and `verify-public` are green,
     and chart `shophub` 0.2.0 is anonymously pullable.
-- [ ] T024 Release and roll out ShopHub:
+- [X] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
   - publish chart 0.2.0 (appVersion 0.1.0);
@@ -594,7 +631,13 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     HTTP redirects to HTTPS, `/api/shops` without a session 401. `can-i` as the ServiceAccount:
     create shops and get secrets in `shops` yes; list secrets, writes in `default`, secrets in
     `shophub` no.
-  - Waits for the maintainer's browser click-through (register, create one shop, open it).
+  - **Browser end-to-end OK (maintainer, 2026-11-25)** at `https://shophub.localhost`:
+    - registered and was signed in;
+    - created one shop, which became Ready, and its Discord channel appeared;
+    - opened the shop from the panel;
+    - signed in to the shop admin with the password from the panel, then changed it.
+
+    The test shop stays until T022, whose live check deletes it (see T022).
 - [ ] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
   15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
   secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
