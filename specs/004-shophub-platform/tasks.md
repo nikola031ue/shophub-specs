@@ -336,7 +336,15 @@ the operator).
   Finding: RBAC can't restrict `get secrets` to `<id>-admin` (`resourceNames` needs fixed names),
   so a known name like `<id>-db-app` is readable by the ServiceAccount; the gateway is the
   restriction, recorded in contracts/delivery.md. 127 tests passing (38 on k3s).
-- The chart task must render the same Role as `tests/.../K3s/Manifests/shophub-rbac.yaml`.
+- The chart task must render the same Role as `tests/.../K3s/Manifests/shophub-rbac.yaml`;
+  enforced by the T023 CI drift check.
+- The Secret-read limit (any known Secret name in `shops` is readable; the gateway reads only
+  `<id>-admin`) is accepted as documented by the maintainer (2026-11-25); no operator change.
+- T015 done: shophub PR #4 (branch `004-accounts`). Accounts API, PostgreSQL stores for owners,
+  sessions and Data-Protection keys, the Phase 2 lockout and rate limit wired in. No enumeration
+  as specified; the counting hasher found that a lazily built dummy hash made the first
+  unknown-email sign-in do an extra PBKDF2 run, fixed by building it when the service is created.
+  147 tests passing.
 
 **Checkpoint**: app starts against PostgreSQL; gateway proven against a real API server.
 
@@ -348,7 +356,7 @@ the operator).
 
 **Independent test**: quickstart Scenario 5.
 
-- [ ] T015 [US2] Accounts backend in `shophub/src/ShopHub.Api/{Accounts,Auth,Endpoints/Accounts.cs}`:
+- [X] T015 [US2] Accounts backend in `shophub/src/ShopHub.Api/{Accounts,Auth,Endpoints/Accounts.cs}`:
   - `GET /api/session`, `POST /api/register`, `/api/signin`, `/api/signout`, `/api/password`;
   - validation per data-model.md `owners` (email, password length); `PasswordHasher` into
     `owners.password_hash`; **no account enumeration** (FR-001, panel-api.md): register answers
@@ -465,6 +473,12 @@ the operator).
   from the Traefik pods in namespace `traefik`; the database pods stay reachable from the app),
   value `trustedProxyHost`, hpa disabled, NOTES, helpers); helm-charts PR, chart `install` job
   green, **ask before merge**.
+  - **Role drift check (maintainer, 2026-11-25):** CI renders the chart's `rbac.yaml` (`helm
+    template` with default values) and compares the Role and RoleBinding with
+    `shophub/tests/ShopHub.Api.Tests/Integration/K3s/Manifests/shophub-rbac.yaml`, the manifest
+    the k3s RBAC tests assert. Rules, subjects and namespace are compared after normalising (YAML to
+    JSON, rule lists sorted; labels and annotations ignored). Any difference fails the job, so the
+    deployed RBAC can't drift from the tested one.
 - [ ] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
