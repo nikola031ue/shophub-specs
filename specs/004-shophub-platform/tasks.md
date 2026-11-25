@@ -400,7 +400,7 @@ Progress (Phase 4):
   already taken." fails them. `compose.yaml` runs PostgreSQL plus the image at
   http://localhost:8080 for a browser click-through (passwordless trust database, no published
   DB port). Smoke test against the real API in compose matched the contract. Browser
-  click-through by the maintainer before T017.
+  click-through by the maintainer (2026-11-25, `docker compose` at http://localhost:8080): OK.
 
 **Checkpoint**: Scenario 5 passes locally.
 
