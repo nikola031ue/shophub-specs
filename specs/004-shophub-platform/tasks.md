@@ -226,6 +226,16 @@ the operator).
   HTTP).
 - The PostgreSQL migration file lives at `Storage/Postgres/Scripts/003_lockout_per_account_address.sql`
   (the repo's existing layout); stale `admin_lockouts` rows are pruned on each failure.
+- Review before merge (maintainer): the shop-wide counter can't be fed by unknown account names
+  (the login takes only a password; the account is always `admin`). But attempts that passed the
+  lock check concurrently were still counted shop-wide after their (account, address) pair had
+  locked, so one address could reach the 50-failure ceiling with a burst. Fixed: a failure while
+  either scope is locked changes neither (`LockoutState.ApplyFailure`, `failed_signin.lua`).
+  Tests: 60 concurrent failures from one address on three replicas leave the shop-wide count at
+  5; the same burst over HTTP locks only that address; both failed against the old code. 215
+  tests passing.
+- shop PR #8 merged (`79a8ec3`), tagged `v0.2.0`, image `ghcr.io/nikola031ue/shop:0.2.0`
+  published. kube-state PR #11 (`shopImage.tag: "0.2.0"`) open, CI green.
 
 **Checkpoint Phase 1**: D-1 and R-1 closed; platform deployed. ShopHub work may start.
 
