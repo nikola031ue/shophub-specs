@@ -561,7 +561,8 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     Nothing was missing.
   - After the `v0.1.0` release (T024) the `install` job was re-run and passed: ShopHub rolled out
     against CNPG in kind, the NetworkPolicy exists, and every `can-i` assertion held.
-  - All helm-charts PR #9 checks are green; merge waits for the maintainer.
+  - helm-charts PR #9 merged as `7ac6e3c` (approved). `publish` and `verify-public` are green,
+    and chart `shophub` 0.2.0 is anonymously pullable.
 - [ ] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
@@ -578,6 +579,8 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     or made.
   - GitHub returned intermittent 500/502 errors on merge, tag push and re-run (about
     15:40–16:05 UTC). Each was retried and verified; nothing was half-applied.
+  - kube-state PR #12 (branch `004-shophub-0.2.0`): chart 0.2.0, image 0.1.0, host and namespaces.
+    All checks green, including `e2e`. Merge waits for the maintainer.
 - [ ] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
   15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
   secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
