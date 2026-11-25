@@ -27,11 +27,11 @@ give **404** with the same body (FR-005, SC-004).
 | Method | Path | Request | Responses |
 |--------|------|---------|-----------|
 | GET | `/api/shops` | – | 200 `{shops:[Shop]}`, the caller's shops only, newest first |
-| POST | `/api/shops` | `{name, availability, database, walletAddress}` | 201 `Shop` (state `preparing`) · 400 validation · 409 duplicate name for this owner · 409 `limit` when the owner already has 5 shops |
+| POST | `/api/shops` | `{name, availability, database, walletAddress}` | 201 `Shop` (state `preparing`) · 200 the existing `Shop` when the same create is repeated (same name, settings and wallet; SC-010) · 400 validation · 409 `{reason: "duplicateName", errors: {name}}` for the same name with other settings · 409 `{reason: "limit"}` when the owner already has 5 shops in any state |
 | GET | `/api/shops/{id}` | – | 200 `Shop` · 404 |
 | PATCH | `/api/shops/{id}` | `{availability?, walletAddress?}` | 200 `Shop` · 400 validation (including any attempt to send `name` or `database`) · 404 · 409 shop is being deleted |
 | DELETE | `/api/shops/{id}` | `{confirmName}` | 202 `Shop` (state `deleting`) · 400 when `confirmName` doesn't match the display name (trimmed, exact case) · 404 |
-| POST | `/api/shops/{id}/admin-password` | – | 200 `{password}` with `Cache-Control: no-store`, only while the shop is ready and the generated password is still in use · 409 `{reason: "changed"}` when the shop admin has changed it · 409 `{reason: "notReady"}` · 404 |
+| POST | `/api/shops/{id}/admin-password` | – | 200 `{password}` with `Cache-Control: no-store`, only while the shop is ready and the generated password is still in use · 409 `{reason: "changed"}` when the shop admin has changed it · 409 `{reason: "notReady"}` (not ready, being deleted, or no Secret yet) · 404 · 503 when the shop doesn't answer the check. Order: ownership, Ready, the shop's own `adminPasswordChanged`, then Secret `<id>-admin` |
 
 `Shop`:
 

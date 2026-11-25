@@ -446,13 +446,27 @@ Progress (Phase 4):
   - Research R8 corrected: no list-and-prune by label.
   - 244 tests. Mutations caught: with no lock, the lock tests fail; with a stop at the first
     failing shop, the isolation and interruption tests fail.
-- [ ] T019 [US3] Shop endpoints in `shophub/src/ShopHub.Api/Endpoints/Shops.cs`:
+- [X] T019 [US3] Shop endpoints in `shophub/src/ShopHub.Api/Endpoints/Shops.cs`:
   - `GET /api/shops`, `POST /api/shops`, `GET /api/shops/{id}`,
     `POST /api/shops/{id}/admin-password` (status read over the in-cluster Service first; 409
     `changed` / `notReady`; `Cache-Control: no-store`; password never logged);
   - 503 when the database or Kubernetes API is down;
   - API tests plus `tests/ShopHub.Api.Tests/Integration/Isolation/` suite: owner B gets 404 for
     every endpoint on owner A's shop, and A's shops are absent from B's list (FR-018, SC-004).
+
+  Progress: done in shophub PR #8 (branch `004-shop-api`).
+  - The endpoints are in `Shops/ShopEndpoints.cs`, next to `Accounts/AccountEndpoints.cs`, not in
+    `Endpoints/Shops.cs`.
+  - A repeated create answers 200 with the existing shop.
+  - 503 now also covers an unreachable Kubernetes API.
+  - The isolation matrix is data-driven; T021 and T022 add PATCH and DELETE rows.
+  - 270 tests. Dropping the owner filter fails the isolation suite.
+
+  Before merging T018 (PR #7), the reconciler lock was confirmed transaction-scoped
+  (`pg_try_advisory_xact_lock`, no session lock), so it can't leak through the connection pool.
+  Tests added: a pass cancelled mid-apply and a pass whose connection was killed, on a
+  one-connection pool, are followed by a pass that runs. A session-level lock without unlock fails
+  the cancel case.
 - [ ] T020 [P] [US3] Angular shops in `shophub/src/ShopHub.Web/src/app/shops/`:
   - list with states and reasons, refreshed at least every 10 s while any shop is not ready
     (FR-008);
