@@ -551,13 +551,33 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - Found on the way: the shophub push run for `b37c11e` failed once in
     `StartupTests.MissingDatabaseUrlStopsTheStartAndNamesIt`. The cause is a
     WebApplicationFactory race (`ObjectDisposedException` instead of `SettingsException`). A
-    test-only fix is committed locally (shophub branch `004-startup-test-race`), not pushed.
+    test-only fix, shophub PR #10 (merged as `db327b0`, approved by the maintainer).
+  - The 5.3 tree was confirmed exact on request:
+    - `Chart.yaml`, `values.yaml`, and `charts/` (tracked by `.gitkeep`, excluded from the
+      package by `.helmignore`);
+    - `templates/` holds only the seven files;
+    - `hpa.yaml` renders nothing by default and an HPA with `autoscaling.enabled=true`.
+
+    Nothing was missing.
+  - After the `v0.1.0` release (T024) the `install` job was re-run and passed: ShopHub rolled out
+    against CNPG in kind, the NetworkPolicy exists, and every `can-i` assertion held.
+  - All helm-charts PR #9 checks are green; merge waits for the maintainer.
 - [ ] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
   - publish chart 0.2.0 (appVersion 0.1.0);
   - kube-state PR `clusters/local/shophub/{helm.yaml,values.yaml}` → **ask before merge** →
     `./bring-up.sh`; quickstart Scenario 4; record the tag-to-pullable-image time (SC-009).
+
+  Progress:
+  - shophub `v0.1.0` tagged on `db327b0` (approved).
+  - Tag pushed 15:58:51 UTC; the `release` job pushed `ghcr.io/nikola031ue/shophub:0.1.0` by
+    16:01:31, so **2 min 40 s from tag to pullable image** (SC-009 < 15 min).
+  - The package was already Public: an anonymous manifest fetch from ghcr.io gives HTTP 200, as
+    shop-operator's did, inherited from the public repository. No visibility change was needed
+    or made.
+  - GitHub returned intermittent 500/502 errors on merge, tag push and re-run (about
+    15:40–16:05 UTC). Each was retried and verified; nothing was half-applied.
 - [ ] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
   15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
   secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
