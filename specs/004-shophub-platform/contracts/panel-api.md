@@ -37,14 +37,14 @@ give **404** with the same body (FR-005, SC-004).
 
 ```json
 {
-  "id": "s7k2m9qxa1",
+  "id": "s7k2m4qxab",
   "name": "Acme Clothing",
   "availability": "standard",
   "database": "light",
   "walletAddress": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
   "state": "preparing | ready | attention | deleting",
   "reason": "plain-language text or null",
-  "url": "https://s7k2m9qxa1.shops.localhost or null until known",
+  "url": "https://s7k2m4qxab.shops.localhost or null until known",
   "readyReplicas": 0,
   "replicas": 2,
   "createdAt": "2026-11-24T10:00:00Z"

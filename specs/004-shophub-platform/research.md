@@ -227,7 +227,7 @@ stable release that is at least two weeks old.
 ## R9 — Naming (FR-007, FR-009, FR-018)
 
 - **Decision**:
-  - Generated identifier: `s` + 9 random lowercase base32 characters (for example `s7k2m9qxa1`).
+  - Generated identifier: `s` + 9 random lowercase base32 characters (for example `s7k2m4qxab`).
     It is unique in `shops`, generated on create, retried on a collision.
   - Shop `<id>` (so the host is `<id>.shops.localhost` and the admin Secret is `<id>-admin`).
   - DiscordChannel `<id>` with `channelName: <id>`.
