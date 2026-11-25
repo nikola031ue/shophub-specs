@@ -533,6 +533,25 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     the k3s RBAC tests assert. Rules, subjects and namespace are compared after normalising (YAML to
     JSON, rule lists sorted; labels and annotations ignored). Any difference fails the job, so the
     deployed RBAC can't drift from the tested one.
+
+  Progress (reordered by the maintainer 2026-11-25: T023/T024 before T021/T022):
+  - **helm-charts PR #9** (branch `004-shophub-chart`):
+    - chart 0.2.0 with appVersion 0.1.0;
+    - the 5.3 file list is kept: the new objects render from the allowed templates
+      (delivery.md);
+    - `rbac-drift` job: script and bats tests, checks out shophub-spec main's manifest,
+      `publish` waits for it;
+    - `install` job: CNPG 0.29.2 first, then ShopHub rollout, NetworkPolicy, no
+      ClusterRoleBinding, and `can-i` for every granted and refused permission.
+  - Drift check run locally: passes on the real manifest; an extra Secret `list` fails with a
+    diff; reordering and labels pass.
+  - All PR checks green except `install`, which waits for the `shophub:0.1.0` image (T024).
+  - kube-state change committed locally (branch `004-shophub-0.2.0`); its PR waits for the
+    published chart.
+  - Found on the way: the shophub push run for `b37c11e` failed once in
+    `StartupTests.MissingDatabaseUrlStopsTheStartAndNamesIt`. The cause is a
+    WebApplicationFactory race (`ObjectDisposedException` instead of `SettingsException`). A
+    test-only fix is committed locally (shophub branch `004-startup-test-race`), not pushed.
 - [ ] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;

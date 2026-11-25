@@ -48,6 +48,16 @@ Actions pinned by SHA, `permissions: {}` at the top. Branch protection (asked fi
 
 ## Chart `helm-charts/charts/shophub` 0.2.0 (replaces the 0.1.0 placeholder)
 
+**Template files (T023):** Requirement 5.3 is eliminatory and fixes the `shophub` template files
+(`NOTES.txt`, `_helpers.tpl`, `deployment.yaml`, `hpa.yaml`, `ingress.yaml`, `service.yaml`,
+`serviceaccount.yaml`), and the helm-charts `layout` check enforces that exact list. So the rows
+below marked "(new)" are separate objects but not separate files:
+- the Role and RoleBinding render from `serviceaccount.yaml`;
+- the CNPG Cluster renders from `deployment.yaml`;
+- the NetworkPolicy renders from `ingress.yaml`.
+
+The drift check selects them by kind.
+
 | Template | Content |
 |----------|---------|
 | `deployment.yaml` | 2 replicas, image `ghcr.io/nikola031ue/shophub:<appVersion>`, non-root, readiness `/healthz`, memory 128Mi/256Mi, env from values and the CNPG Secret |
