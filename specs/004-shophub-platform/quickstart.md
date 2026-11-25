@@ -106,7 +106,8 @@ from pushing the `v0.1.0` tag to a pullable image (under 15 min).
 ## Scenario 5 — Accounts (US2, FR-001–FR-005)
 
 1. Register `a@example.test`, sign out, sign in. A duplicate registration (any letter case) gets
-   409.
+   the same 202 as a new one, and signing in with the duplicate's password gets 401. Sign-in with
+   an unknown email gets the same 401 body as a wrong password.
 2. Five wrong passwords from one address, then the right one from that address: 429. From
    another address (Scenario 3 method): it works.
 3. Copy the session cookie, sign out, replay the cookie. Expected: 401.

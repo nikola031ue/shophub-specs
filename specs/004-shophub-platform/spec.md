@@ -106,10 +106,11 @@ panel. A second account cannot see the first one's panel.
 **Acceptance Scenarios**:
 
 1. **Given** no account for an email, **When** the visitor registers with that email and a valid
-   password, **Then** the account exists and the visitor is signed in to an empty shop panel.
+   password, **Then** the account exists, and the panel signs them in with those credentials to an
+   empty shop panel.
 2. **Given** an existing account, **When** someone registers again with the same email in any
-   letter case, **Then** registration is refused with a message that does not reveal whether the
-   account exists beyond what registration needs.
+   letter case, **Then** the registration response is the same as for a new account (no account
+   is created or changed), and signing in with the new password fails with the generic error.
 3. **Given** a registered owner, **When** they sign in with the right password, **Then** they
    reach their shop panel. With a wrong password they get a generic error.
 4. **Given** 5 failed sign-ins for one account from one client address within 15 minutes,
@@ -247,7 +248,10 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
 
 - **FR-001**: Visitors MUST be able to register with an email address and a password of at least
   12 characters. Emails are unique regardless of letter case. No email verification is sent
-  (Assumptions).
+  (Assumptions). No account enumeration (decided 2026-11-25): registering with an email that
+  already has an account MUST give the same response, with similar timing, as registering a new
+  one; signing in with an unknown email MUST give the same response, with similar timing, as a
+  wrong password.
 - **FR-002**: Registered owners MUST be able to sign in and sign out. A session lasts at most 8
   hours. Sign-out ends that session, and a copied cookie stops working. Changing the password
   MUST end every other session of that owner, keeping only the session that made the change

@@ -186,8 +186,15 @@ stable release that is at least two weeks old.
     address, which is stricter, never weaker).
   - Enforced as well by a NetworkPolicy in the `shophub` chart: the ShopHub app pods accept TCP
     8080 only from the Traefik pods (Docker Desktop enforces policies, R5).
-  - Registration answers 409 "email already registered". It is unavoidable for a sign-up form,
-    and it is rate-limited per client address (10 per hour).
+  - No account enumeration (FR-001, decided 2026-11-25; replaces the earlier 409 "email already
+    registered"): registration answers 202 with no body and no cookie whether or not the email
+    exists, and always computes one password hash; the panel then signs in. Sign-in with an
+    unknown email returns the wrong-password 401 and verifies against a fixed dummy hash, so both
+    paths cost one PBKDF2 run. Registration is rate-limited per client address (10 per hour).
+    Residual, accepted: without email verification (out of scope), registering an email and then
+    signing in with that password tells whether the email was taken (sign-in fails). That costs a
+    registration (10/hour/address) and a sign-in failure (lockout), and works only one email at a
+    time; email verification would close it.
 - **Alternatives**: ASP.NET Core Identity with EF Core (an ORM and more tables than needed);
   OIDC provider (out of scope; no external IdP). For the proxy list: the pod CIDR (any pod the
   policy admits could forge the header; shops dropped it too, R5); reading Traefik pods through the

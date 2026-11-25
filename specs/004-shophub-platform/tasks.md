@@ -328,7 +328,10 @@ the operator).
 - [ ] T015 [US2] Accounts backend in `shophub/src/ShopHub.Api/{Accounts,Auth,Endpoints/Accounts.cs}`:
   - `GET /api/session`, `POST /api/register`, `/api/signin`, `/api/signout`, `/api/password`;
   - validation per data-model.md `owners` (email, password length); `PasswordHasher` into
-    `owners.password_hash`; duplicate by `owners.email_normalized` → 409;
+    `owners.password_hash`; **no account enumeration** (FR-001, panel-api.md): register answers
+    202 with no body and no cookie for both a new and an existing `owners.email_normalized`
+    (existing account untouched; one hash computed either way); sign-in with an unknown email
+    gives the wrong-password 401 and verifies against a fixed dummy hash;
   - sessions per `owner_sessions` (8 h, row checked on every request, deleted on sign-out; a
     password change deletes the owner's other rows): a PostgreSQL `ISessionStore` for the Phase 2
     `Auth/Sessions.cs`;
@@ -342,9 +345,15 @@ the operator).
     flags, replayed cookie after sign-out → 401, **after a password change a stolen cookie of
     another session → 401 while the current session stays**, lockout from one address does not
     block the same account from another, and **5 failures for account X from address A don't lock
-    account Y from address A**; 50 across addresses lock X but not Y.
+    account Y from address A**; 50 across addresses lock X but not Y; **no enumeration**: an
+    existing-email registration and a new one return identical status, headers (no
+    `Set-Cookie` session) and body, and an unknown-email sign-in and a wrong-password sign-in
+    return identical status and body; for both pairs the median time over 20 requests each is
+    within a factor of 2 (both paths do one PBKDF2 run).
 - [ ] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
-  sign-in pages, XSRF interceptor, route guard, sign-out; `ng test`.
+  sign-in pages (after a 202 registration the page signs in with the same credentials; a 401
+  there shows "If you already have an account, sign in with its password"), XSRF interceptor,
+  route guard, sign-out; `ng test`.
 
 **Checkpoint**: Scenario 5 passes locally.
 
