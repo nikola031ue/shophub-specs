@@ -299,3 +299,43 @@ stable release that is at least two weeks old.
   - Chart `shophub` 0.2.0 is published by the `helm-charts` pipeline. kube-state `shophub` values
     set the image tag and hosts.
 - **Alternatives**: none worth recording; consistency with `shop` matters more.
+
+## R15 — Wallet address checksum in ShopHub (FR-006, FR-009)
+
+- **Decision**: ShopHub checks a wallet address before it creates anything (FR-006), with the
+  same rule as shop-operator's `wallet.NormalizeAddress`:
+  - `0x` + 40 hex digits;
+  - all-lowercase or all-uppercase carries no checksum and is accepted;
+  - mixed case must match EIP-55 exactly.
+
+  The address is stored and sent to the Wallet in EIP-55 form. The code is
+  `shophub/src/ShopHub.Api/Shops/Eip55.cs`.
+- **Keccak-256 is written by hand** (about 100 lines, in `Eip55.cs`):
+  - EIP-55 needs Ethereum's Keccak-256: the original Keccak with padding byte `0x01`.
+  - .NET's `SHA3_256` is the FIPS 202 SHA3-256, which uses padding byte `0x06`, so it gives
+    different digests and can't be used.
+  - .NET has no Keccak of its own, and a crypto package (Nethereum, BouncyCastle) would add a
+    large dependency for one function.
+- **Scope**: the hash is used only to compute and check address checksums. It is never used
+  for passwords, tokens, signatures or anything else security-related. Passwords use
+  `PasswordHasher` (PBKDF2), R7.
+- **Test vectors** (`tests/ShopHub.Api.Tests/Unit/ShopRulesTests.cs`):
+  - Keccak-256 of the empty input is
+    `c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470`.
+  - Keccak-256 of `abc` is
+    `4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45`.
+  - **Cross-check against SHA3:** the same sponge with padding byte `0x06` must equal the
+    platform's `SHA3_256` at input lengths 0, 1, 135, 136, 137, 271, 272 and 500 bytes. 136
+    bytes is the rate, so these lengths cross the block boundaries.
+  - **EIP-55 examples** must pass unchanged: `0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed`,
+    `0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359`,
+    `0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB` and
+    `0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb`. These are the vectors shop-operator's wallet
+    tests use.
+  - **Normalising and refusing:** an all-lowercase or all-uppercase address is converted to
+    its EIP-55 form. A single wrong letter case is refused as a checksum error.
+- **Alternatives**:
+  - Nethereum or BouncyCastle: a large dependency for one function.
+  - No checksum check in ShopHub, leaving it to the operator: a typo would then surface only
+    after the resources exist, as `InvalidChecksum`, instead of as a field error before
+    anything is created.
