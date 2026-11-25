@@ -461,13 +461,16 @@ Progress (Phase 4):
   - 503 now also covers an unreachable Kubernetes API.
   - The isolation matrix is data-driven; T021 and T022 add PATCH and DELETE rows.
   - 270 tests. Dropping the owner filter fails the isolation suite.
+  - Before merge: `Cache-Control: no-store` and `Pragma: no-cache` are now set before the
+    ownership check, so every admin-password answer carries them (200, 404, 409, 503). Tested for
+    each outcome; removing the Pragma line fails the test.
 
   Before merging T018 (PR #7), the reconciler lock was confirmed transaction-scoped
   (`pg_try_advisory_xact_lock`, no session lock), so it can't leak through the connection pool.
   Tests added: a pass cancelled mid-apply and a pass whose connection was killed, on a
   one-connection pool, are followed by a pass that runs. A session-level lock without unlock fails
   the cancel case.
-- [ ] T020 [P] [US3] Angular shops in `shophub/src/ShopHub.Web/src/app/shops/`:
+- [X] T020 [P] [US3] Angular shops in `shophub/src/ShopHub.Web/src/app/shops/`:
   - list with states and reasons, refreshed at least every 10 s while any shop is not ready
     (FR-008);
   - create form with field errors and the limit message;
@@ -476,7 +479,17 @@ Progress (Phase 4):
     and the "password was changed" message;
   - `ng test` covering the refresh interval, the `rel` attribute and the hint.
 
+  Progress: done in shophub PR #9 (branch `004-shops-web`).
+  - The list replaces the placeholder start page and reloads every 5 s while a shop isn't ready
+    (an injection token, at most 10 s).
+  - Links go only to ready shops with an address.
+  - The admin password is fetched only on click, with a link to the shop's `/admin/login`.
+  - 45 `ng test` tests. Removing `rel`, or polling when all shops are ready, fails them.
+
 **Checkpoint (MVP)**: register → create → open works locally against k3s/fake gateway.
+Status: covered piecewise by tests: the API with the fake gateway, the reconciler on k3s, the
+pages with `ng test`. Not yet run end to end in a browser. The compose setup has no cluster, so
+shop reads answer 503 there. The first real run is with the chart on Docker Desktop (T023–T025).
 
 ---
 
