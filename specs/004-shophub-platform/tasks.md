@@ -209,7 +209,7 @@ the operator).
 - [X] T009 [P] [US1] `GET /api/shop` returns `{name, adminPasswordChanged}` (false while the
   operator-generated password is in use, true after a change) in `shop/src/Shop.Api/Endpoints/`,
   with tests on both stores; README updated for T007–T009.
-- [ ] T010 [US1] Release and roll out 1C:
+- [X] T010 [US1] Release and roll out 1C:
   - shop PR → **ask before merge** → tag `v0.2.0` → image;
   - kube-state PR (`clusters/local/shop-operator/values.yaml` `shopImage.tag: "0.2.0"`) → **ask
     before merge** → `./bring-up.sh`;
@@ -236,6 +236,27 @@ the operator).
   tests passing.
 - shop PR #8 merged (`79a8ec3`), tagged `v0.2.0`, image `ghcr.io/nikola031ue/shop:0.2.0`
   published. kube-state PR #11 (`shopImage.tag: "0.2.0"`) open, CI green.
+- T010 done:
+  - kube-state PR #11 merged (`7d0e1e5`); bring-up: `0 installed, 1 upgraded, 5 unchanged`
+    (shop-operator re-rendered with `--shop-image-tag=0.2.0`).
+  - Test Shops `p1c-a` (database standard, PostgreSQL on CNPG, so migration 003 ran for real) and
+    `p1c-b` (light, Redis), both Ready on `shop:0.2.0`, 2 replicas each. Probes: two throwaway
+    pods (`10.244.0.95` pod A, `10.244.0.96` pod B) in throwaway namespace `p1c-probe`, over
+    HTTPS through the Traefik Service (`--resolve` to its ClusterIP). The admin password went to
+    the pods on stdin and was never printed.
+  - Scenario 3 on `p1c-a`: (1) 5 wrong sign-ins from A → 401 ×5; right password from B → 204;
+    right password from A → 429. (2) A with `X-Forwarded-For: 10.244.0.96` → still 429. The
+    `admin_lockouts` table held `('admin', '10.244.0.95')` locked and `('*', '*')` at 5: A's two
+    attempts while locked were not counted shop-wide. (3) A's orders: 201 ×20, then 429 (2
+    replicas × 10, per-replica limit); B's order right after: 201. Quickstart step 3 corrected
+    to 10 × replicas. (4) Cookie jar: `shop.session`, `shop.af`, `XSRF-TOKEN` all Secure (the
+    first two HttpOnly). (5) `GET /api/shop`: `adminPasswordChanged` false, password change
+    204, then true.
+  - Browser check (maintainer, 2026-11-25): signed in at `https://p1c-b.shops.localhost/admin`
+    with the generated password read in their own terminal; all three cookies Secure.
+  - Cleanup through the operator: both Shops, DiscordChannels and Wallets deleted, namespace
+    `p1c-probe` deleted; `shops` empty; Discord shows no `p1b-*`, `p1c-*` or `np-check`
+    channels, only `platform-alerts`.
 
 **Checkpoint Phase 1**: D-1 and R-1 closed; platform deployed. ShopHub work may start.
 

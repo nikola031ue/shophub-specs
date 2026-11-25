@@ -76,7 +76,10 @@ After shop `v0.2.0` is rolled out:
    - 5 wrong admin sign-ins from pod A, then the right password from pod B: **204**.
    - Pod A gets 429.
 2. Pod A sends `X-Forwarded-For: <pod B IP>` itself. Expected: still treated as pod A.
-3. Pod A places 10 orders, then pod B places one. Expected: pod B **201**, pod A's 11th **429**.
+3. Pod A places orders until refused, then pod B places one. The limit (10 per minute) is held in
+   memory by each replica and Traefik spreads requests over them, so pod A gets up to
+   10 × replicas (20 for `standard`, 30 for `high`). Expected: pod A's orders are **201** until
+   at most 10 × replicas, then **429**; pod B's order right after is **201**.
 4. Sign in through the browser. Expected: session and anti-forgery cookies are `Secure`.
 5. `GET /api/shop` shows `adminPasswordChanged: false`, then `true` after a password change.
 
