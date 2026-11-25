@@ -394,7 +394,7 @@ the operator).
 Progress (Phase 4):
 
 - T015 merged: shophub PR #4 (718c554).
-- T016 done: shophub PR #5 (branch `004-auth-web`). Register, sign-in, sign-out, owner and guest
+- T016 merged: shophub PR #5 (d1bad2b). Register, sign-in, sign-out, owner and guest
   guards, own XSRF interceptor (fetches a missing token, replaces a stale one once on the API's
   XSRF 400; other `/api` 401s go to sign-in). 29 `ng test` tests; a mutation to "This email is
   already taken." fails them. `compose.yaml` runs PostgreSQL plus the image at
