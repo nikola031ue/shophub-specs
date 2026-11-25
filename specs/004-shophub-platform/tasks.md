@@ -183,7 +183,7 @@ the operator).
 
 ### 1C — shop `v0.2.0` (release: tag → kube-state)
 
-- [ ] T007 [P] [US1] Forwarded headers, cookies and order limit in `shop/src/Shop.Api/`:
+- [X] T007 [P] [US1] Forwarded headers, cookies and order limit in `shop/src/Shop.Api/`:
   - `Settings.cs`: optional `TRUSTED_PROXY_HOST` (research R5);
   - new `ForwardedHeaders.cs`: `XForwardedFor | XForwardedProto`, trusted proxies are the
     addresses of `TRUSTED_PROXY_HOST` resolved by DNS every 30 s (same approach as ShopHub
@@ -193,7 +193,7 @@ the operator).
   - tests: header honoured from a resolved Traefik address, ignored from any other peer
     (including one inside the pod network, i.e. a ShopHub pod) and when the lookup fails; two addresses get
     separate order limits; `Secure` flag set.
-- [ ] T008 [P] [US1] Admin lockout per (account, client address) with shop-wide ceiling (FR-023),
+- [X] T008 [P] [US1] Admin lockout per (account, client address) with shop-wide ceiling (FR-023),
   both stores, per data-model.md "shop app 0.2.0 storage additions":
   - `shop/src/Shop.Api/Storage/Scripts/003_lockout_per_account_address.sql` (`admin_lockouts`,
     PK `(account, address)`);
@@ -206,7 +206,7 @@ the operator).
     account from another address signs in; **5 failures for account `admin` from address A don't
     lock a different account from A** (store contract test with a second account name, since the
     app has one admin); 50 failures across addresses lock all; window expiry.
-- [ ] T009 [P] [US1] `GET /api/shop` returns `{name, adminPasswordChanged}` (false while the
+- [X] T009 [P] [US1] `GET /api/shop` returns `{name, adminPasswordChanged}` (false while the
   operator-generated password is in use, true after a change) in `shop/src/Shop.Api/Endpoints/`,
   with tests on both stores; README updated for T007–T009.
 - [ ] T010 [US1] Release and roll out 1C:
@@ -215,6 +215,17 @@ the operator).
     before merge** → `./bring-up.sh`;
   - live: quickstart Scenario 3 through the Traefik Service from two throwaway pods; then delete
     the Phase 1 test Shops, Wallets, DiscordChannels and pods.
+
+**Progress 1C (2026-11-25)**:
+- T007–T009 done: shop PR #8 (branch `004-shop-0.2.0`), 208 tests passing on PostgreSQL and Redis
+  (Testcontainers), `dotnet format` clean.
+- Finding: with `CookieSecurePolicy.Always`, ASP.NET Core antiforgery throws on any plain-HTTP
+  request. The Traefik-to-pod hop is HTTP, so a failed `TRUSTED_PROXY_HOST` lookup would have
+  turned every admin request into a 500. Every cookie is now marked `Secure` by the cookie policy
+  middleware instead; antiforgery keeps `SameAsRequest`. FR-025 still holds (tested over plain
+  HTTP).
+- The PostgreSQL migration file lives at `Storage/Postgres/Scripts/003_lockout_per_account_address.sql`
+  (the repo's existing layout); stale `admin_lockouts` rows are pruned on each failure.
 
 **Checkpoint Phase 1**: D-1 and R-1 closed; platform deployed. ShopHub work may start.
 
