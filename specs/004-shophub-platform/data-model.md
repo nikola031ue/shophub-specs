@@ -74,6 +74,10 @@ Rules:
   to `wallet_generation`; the same address doesn't. Going back to an earlier address is a new
   generation too, since a Wallet's address never changes. `updated_at` moves only when a value
   changed; repeating the current values writes nothing. A `Deleting` row can't be changed.
+- Delete (FR-013) sets `state = Deleting` and `updated_at` under the same row lock, after checking
+  ownership and then that the typed name, trimmed, equals `display_name` exactly. The reconciler
+  removes the row (`DELETE … WHERE state = 'Deleting'`) once none of the shop's objects exists.
+  Until then the row still counts towards the limit and keeps its `display_name_key`.
 - Every query for an owner-facing API filters on `owner_id = @current` (FR-005). A missing row and
   another owner's row give the same 404.
 
@@ -120,6 +124,11 @@ and points the Shop at it. Only after that does it delete Wallets `<id>-w<oldest
 A failed delete leaves the column as it was, so the next pass retries; a crash between the delete
 and the update only repeats deletes of names already gone. The operator keeps a Wallet while a
 Shop still uses it (002 `InUse`).
+
+For a `Deleting` record each pass deletes Shop `<id>` first (the operator keeps a Wallet or
+DiscordChannel while a Shop uses it), then DiscordChannel `<id>` and Wallets `<id>-w1` …
+`<id>-w<wallet_generation>`, then reads each of those names back; the row goes when none
+exists. While finalizers hold any of them, passes run every 5 s instead of 30 s (SC-003).
 
 ## Derived resources added by shop-operator 0.3.0 (owned by the Shop)
 

@@ -4,6 +4,8 @@ Served by the `shophub` image under `/api`. The Angular panel is served from `/`
 non-`/api` paths return `index.html`. JSON only.
 
 - Errors are RFC 7807 problem details. Validation problems add `errors: {field: [message]}`.
+- A PATCH or DELETE without a JSON body is answered like an empty body (400), never with the
+  framework's 404.
 - All state-changing requests need the `X-XSRF-TOKEN` header matching the `XSRF-TOKEN` cookie
   (400 otherwise).
 - Owner endpoints need a valid session (401 otherwise).
@@ -30,7 +32,7 @@ give **404** with the same body (FR-005, SC-004).
 | POST | `/api/shops` | `{name, availability, database, walletAddress}` | 201 `Shop` (state `preparing`) · 200 the existing `Shop` when the same create is repeated (same name, settings and wallet; SC-010) · 400 validation · 409 `{reason: "duplicateName", errors: {name}}` for the same name with other settings · 409 `{reason: "limit"}` when the owner already has 5 shops in any state |
 | GET | `/api/shops/{id}` | – | 200 `Shop` · 404 |
 | PATCH | `/api/shops/{id}` | `{availability?, walletAddress?}`, at least one | 200 `Shop`, also when the values sent are the current ones (nothing is written) · 400 validation by field: `name` or `database` present (even unchanged), any other field, a bad value, or `{}` (key `""`) · 404 · 409 `{reason: "deleting"}` shop is being deleted |
-| DELETE | `/api/shops/{id}` | `{confirmName}` | 202 `Shop` (state `deleting`) · 400 when `confirmName` doesn't match the display name (trimmed, exact case) · 404 |
+| DELETE | `/api/shops/{id}` | `{confirmName}` | 202 `Shop` (state `deleting`), also for a repeat while it is being deleted · 400 `errors: {confirmName}` when `confirmName` doesn't match the display name (trimmed, exact case) or the body is missing · 404. Order: ownership first (another owner's shop is 404 whatever name is sent), then the name |
 | POST | `/api/shops/{id}/admin-password` | – | 200 `{password}` with `Cache-Control: no-store`, only while the shop is ready and the generated password is still in use · 409 `{reason: "changed"}` when the shop admin has changed it · 409 `{reason: "notReady"}` (not ready, being deleted, or no Secret yet) · 404 · 503 when the shop doesn't answer the check. Order: ownership, Ready, the shop's own `adminPasswordChanged`, then Secret `<id>-admin` |
 
 `Shop`:

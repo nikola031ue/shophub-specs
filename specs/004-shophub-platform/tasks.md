@@ -497,7 +497,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
 
 **Independent test**: quickstart Scenario 8 steps 1–2.
 
-- [ ] T021 [US4] `PATCH /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular edit
+- [X] T021 [US4] `PATCH /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular edit
   (`src/app/shops/edit`):
   - availability change; wallet change increments `shops.wallet_generation` (data-model.md), the
     reconciler applies the new Wallet, repoints the Shop, then deletes the old Wallet (FR-009);
@@ -539,7 +539,8 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - **Mutation checks:**
     - without `FOR UPDATE` the lock test fails 3 of 3 runs;
     - deleting old Wallets before the apply fails 4 tests (3 pass, 1 k3s).
-  - Live check (quickstart Scenario 8 steps 1–2) after the next release.
+  - Merged as shophub `39660a5` (approved, 2026-11-26). Live check (quickstart Scenario 8 steps
+    1–2) with the release after T022.
 
 ---
 
@@ -558,6 +559,35 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     meanwhile. Deleting that shop through the panel, then confirming its Shop, every Wallet
     generation and its DiscordChannel are gone from namespace `shops`, the Discord channel is
     gone, and the record has left the list, is T022's live check.
+
+  Progress:
+  - **shophub PR #12** (branch `004-t022-delete-shop`).
+  - **DELETE:**
+    - ownership first: another owner's shop is the plain 404, even with the right name;
+    - then the name, trimmed and exact case: a mismatch or missing body is 400 on
+      `confirmName`;
+    - then 202 "being deleted"; a repeat is 202 again.
+  - **Bodies:** PATCH and DELETE now read their JSON body themselves. A request without a body
+    used to get the framework's 404 from content-type matching; it now gets the contract's 400.
+    The PATCH case was added to T021's tests.
+  - **Reconciler:**
+    - each pass deletes Shop, DiscordChannel and Wallets `-w1 … -w<generation>` by name, then
+      removes the row once none exists;
+    - while finalizers hold objects it passes every 5 s (SC-003); a failed delete is retried at
+      30 s.
+  - The row keeps counting towards the limit until it is gone.
+  - **Panel:** "Delete shop" in each row, except while the shop is being deleted. It shows a
+    warning, asks for the name, and enables the button only on an exact match
+    (`src/app/shops/shop-delete.ts`).
+  - **Tests:** store, reconciler passes, k3s (named DELETEs only; a finalizer keeps the record),
+    API, isolation with DELETE, Angular.
+  - **Local runs:** 314 .NET tests (k3s included) and 58 Angular tests pass; `dotnet format`
+    and `ng lint` are clean.
+  - **Mutation checks:**
+    - removing the row while objects remain fails 3 tests;
+    - dropping the owner filter fails the isolation DELETE row and the store test.
+  - Release after T022 (maintainer, 2026-11-26): one release covers both live checks, T021
+    (Scenario 8 steps 1–2) and T022 (the browser test shop).
 
 ---
 
