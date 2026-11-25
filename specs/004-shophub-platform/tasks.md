@@ -384,10 +384,23 @@ the operator).
     every path does exactly one PBKDF2 operation (hash or verify, same iteration count): new and
     existing registration, wrong password and unknown email. Wall clock is only a coarse guard:
     the median over 20 requests each is within a factor of 5.
-- [ ] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
+- [X] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
   sign-in pages (after a 202 registration the page signs in with the same credentials; a 401
   there shows "If you already have an account, sign in with its password"), XSRF interceptor,
-  route guard, sign-out; `ng test`.
+  route guard, sign-out; `ng test`. The register page's failure wording reveals no more than the
+  API: never "email taken" or "account exists"; tested (exact text, forbidden words, a new and a
+  taken email give the same page).
+
+Progress (Phase 4):
+
+- T015 merged: shophub PR #4 (718c554).
+- T016 done: shophub PR #5 (branch `004-auth-web`). Register, sign-in, sign-out, owner and guest
+  guards, own XSRF interceptor (fetches a missing token, replaces a stale one once on the API's
+  XSRF 400; other `/api` 401s go to sign-in). 29 `ng test` tests; a mutation to "This email is
+  already taken." fails them. `compose.yaml` runs PostgreSQL plus the image at
+  http://localhost:8080 for a browser click-through (passwordless trust database, no published
+  DB port). Smoke test against the real API in compose matched the contract. Browser
+  click-through by the maintainer before T017.
 
 **Checkpoint**: Scenario 5 passes locally.
 
