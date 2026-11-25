@@ -284,13 +284,23 @@ the operator).
   ending the owner's other sessions; cookie policy; registration rate limit. FR-002, FR-003,
   R7, data-model.md and panel-api.md (`POST /api/password`) amended. 60 .NET tests (PostgreSQL
   via Testcontainers), `ng lint`/`ng test`/`ng build` pass.
-- Branch protection for `shophub-spec` not set yet: asked separately (T012).
+- Branch protection for `shophub-spec` set as in shop (maintainer-approved): required `lint` +
+  `test`, strict, admins included, linear history, squash only, delete branch on merge. PR #1
+  merged (`9f0e3c6`).
+
+**Progress Phase 3 (2026-11-25)**:
+- T013 done: shophub PR #2 (branch `004-foundation`). Settings (all five, problems named
+  without values), `DatabaseInitializer` (from shop's `StoreInitializer`: migrations before the
+  port opens, backoff capped at 10 s, redacted logs), `002_panel.sql` with the data-model rules
+  as constraints, `/healthz` checks the database. 89 tests passing (Testcontainers PostgreSQL),
+  including three replicas migrating at once and no secrets in logs when the database is
+  unreachable.
 
 ---
 
 ## Phase 3: Foundation (blocks US2–US5)
 
-- [ ] T013 Settings, startup and schema in `shophub/src/ShopHub.Api/`:
+- [X] T013 Settings, startup and schema in `shophub/src/ShopHub.Api/`:
   - `Settings.cs`: `DATABASE_URL`, `SHOPS_NAMESPACE`, `SHOP_DOMAIN`, `TRUSTED_PROXY_HOST`,
     `MAX_SHOPS_PER_OWNER` (contracts/delivery.md);
   - `ForwardedHeaders.cs` (ported in Phase 2; T013 only wires it with the other settings): trusted proxies limited to Traefik (research R7): the IPs of
