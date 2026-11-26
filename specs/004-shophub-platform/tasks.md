@@ -541,6 +541,15 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     - deleting old Wallets before the apply fails 4 tests (3 pass, 1 k3s).
   - Merged as shophub `39660a5` (approved, 2026-11-26). Live check (quickstart Scenario 8 steps
     1–2) with the release after T022.
+  - **Live check on 0.2.0 (2026-11-26), shop `suuqyuaaz2`:**
+    - Step 1 (availability) passed: High, 3/3 copies within about 2 min (details under T022).
+    - Step 2 (wallet change) was not observed live. The shop was deleted before a wallet change
+      was confirmed. The shop-operator and ShopHub logs since the shop's creation (16:09 UTC)
+      have no line for `suuqyuaaz2-w2` or `-w1`: neither logs Wallet creates or deletes, so they
+      can't show the order either way. Read-only checks only; no new shop (maintainer).
+    - **Deviation:** the live wallet-swap check is deferred to spec 005 (plan.md D-2). The order
+      new Wallet → Shop repointed → old Wallet deleted is covered by the k3s test
+      `ReconcilerTests` (wallet switch) and the store tests for generations.
 
 ---
 
