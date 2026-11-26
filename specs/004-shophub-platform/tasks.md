@@ -908,7 +908,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     shop-operator #7–#8, shop #8): 12 findings listed to the maintainer. #4 (test race) fixed in
     shophub #15; #1 and #2 deferred to spec 005 as plan.md D-5 and D-6 (they widen D-1's
     window); #3, #5, #12 are D-1, D-4, D-3; #6, #7, #8, #10, #11 fixed in kube-state PR #14
-    (README, open, waiting for merge approval); #9 (Traefik access log, `SafeNaming`) left for
+    (README; all checks green incl. `e2e`, merged as `83f49a7`, approved); #9 (Traefik access log, `SafeNaming`) left for
     spec 006.
   - spec.md: limits added where it claimed more than T025 proved (D-4 next to the drift edge
     case and FR-015, D-1/D-3 next to FR-009) and a "Validation (T025)" section. Status set to
