@@ -736,6 +736,45 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
   secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
 
+  Plan (2026-11-26; the cluster reset waits for the maintainer's OK):
+  - **A. Reset and bring-up (Scenario 4, FR-028, SC-009).** The maintainer resets the Docker
+    Desktop cluster. Hand-made Secrets: `shophub-tls` (mkcert, README "Local HTTPS") and
+    `shop-operator-discord`, which the maintainer creates without the token appearing in chat.
+    Time `./bring-up.sh` from start to `https://shophub.localhost` answering 200 (< 15 min, no
+    other manual step). Then the Scenario 4 checks: ServiceAccount, `can-i` per namespace,
+    throwaway pod in `default` blocked by the NetworkPolicy, forged `X-Forwarded-For` recorded
+    with the real address in `signin_lockouts` (read-only query).
+  - **B. Accounts (Scenario 5).** Owners A and B via the API: duplicate registration 202,
+    unknown email and wrong password give the same 401, lockout 429 from one throwaway pod and
+    success from a second, replayed session cookie 401.
+  - **C. Create and open (Scenario 6).** The maintainer registers owner A in the browser and
+    creates `Acme` (standard, PostgreSQL) and `Light` (standard, Redis); time from registration
+    to the first storefront open (SC-001 < 5 min) and to Ready (SC-002). Shop admin sign-in and
+    password change in the browser (panel then says "changed"). Invalid inputs and the 6th shop
+    via the API: field errors and the limit message, nothing created.
+  - **D. Isolation (Scenario 7).** Owner B calls GET, PATCH, DELETE and admin-password on
+    `Acme`'s id: 404, same as an unknown id; B's list is empty.
+  - **E. Change, drift and delete (Scenario 8), measured:**
+    1. `Acme` to high: 3 copies within 2 min, items unchanged.
+    2. Drift: delete Shop `<acme>` by name by hand (quickstart's recorded hand change); ShopHub
+       puts it back within 60 s.
+    3. Wallet swap on `Acme`: an order before the change, the address changed in the panel, an
+       order after. Confirmed read-only: Wallet `<acme>-w2` Ready and the Shop on it, `-w1`
+       gone, old order keeps the old address, new order the new one. Only then may the
+       maintainer delete `Acme`.
+    4. Delete with a mistyped name: button disabled in the panel, 400 from the API.
+    5. `Light`, then `Acme`, deleted in the panel. Each measured from the delete request
+       (`updated_at` set by the delete, polled every second) until the record is gone (SC-003
+       < 2 min), plus all objects gone and the host no longer serving.
+    If 3 and 5 pass for `Acme`: close plan.md D-2 and replace T022's missing time.
+  - **F. Secret sweep (Scenario 9, SC-008).** Owner and shop admin passwords, ShopHub DB password
+    and URI, Redis password, Discord token, TLS key: values read only inside a script that prints
+    match counts, never the values. Expected 0 in `git grep` over every commit of all
+    repositories, ShopHub/shop/operator logs, the three kinds' YAML and API responses (except the
+    admin-password response).
+  - **G. Clean up:** remaining test shops deleted through the panel; throwaway pods deleted by
+    exact name. Record every timing here.
+
 ---
 
 ## Phase 9: Polish
