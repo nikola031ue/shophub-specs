@@ -18,14 +18,29 @@ owner's own address; the platform holds no keys). Constitution Principle IV fixe
 (Ethereum Sepolia), the wallet (MetaMask) and the token (the project's own test token, mUSDT), and
 requires every automated test to run against a local chain, never Sepolia.
 
+## Clarifications
+
+### Session 2026-11-27
+
+- Q: How is a payment matched to its order? → A: By the **paying account plus the exact total**.
+  The buyer connects MetaMask at checkout; the order records that account. A settled transfer of
+  exactly the total, from that account, to the order's address, after the order was placed, pays
+  it. Added rule: **an account may have at most one order waiting for payment per shop**; a second
+  checkout with the same account is refused until the first is paid or expired, so a transfer can
+  never fit two orders.
+- Q: What happens to a payment that settles after its order expired? → A: **Recorded only.** The
+  order stays Expired, the transfer is listed to the shop admin as not matched, and the owner
+  settles it with the buyer outside the platform. Stock is not taken again.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Buyer pays an order with MetaMask (Priority: P1)
 
-A buyer has placed an order in a shop (spec 003) and sees its reference, total and status
-"waiting for payment". On the order's page they choose "Pay with MetaMask". The page asks
-MetaMask to switch to Sepolia if needed and proposes a transfer of exactly the order total in
-mUSDT to the shop's wallet address. The buyer confirms in MetaMask. The page shows that the
+A buyer checks out in a shop (spec 003). Checkout now asks them to connect MetaMask; the order is
+placed for that account and they see its reference, total and status "waiting for payment". On
+the order's page they choose "Pay with MetaMask". The page asks MetaMask to switch to Sepolia if
+needed and proposes a transfer of exactly the order total in mUSDT, from the connected account, to
+the shop's wallet address. The buyer confirms in MetaMask. The page shows that the
 payment was sent, then, once the platform has seen it settle on the chain, shows the order as
 **Paid**. Only gas is paid in ETH; the price is paid in mUSDT.
 
@@ -47,8 +62,13 @@ that the shop's wallet address received exactly the total.
 4. **Given** a buyer who closes the tab right after confirming in MetaMask, **When** the payment
    settles, **Then** the order still becomes Paid, and reopening the order by its reference shows
    it.
-5. **Given** a transfer of the wrong amount, of another token, or to another address, **When** it
-   settles, **Then** the order stays waiting for payment.
+5. **Given** a transfer of the wrong amount, of another token, to another address, or from an
+   account other than the order's, **When** it settles, **Then** the order stays waiting for
+   payment and the transfer, if it reached the shop's address, is listed to the admin as not
+   matched.
+6. **Given** a connected account that already has an order waiting for payment in this shop,
+   **When** the buyer checks out again with it, **Then** checkout is refused with a message that
+   names the waiting order's reference; it works again once that order is paid or expired.
 
 ---
 
@@ -73,8 +93,8 @@ is Expired and every item's stock is back to its earlier value, exactly once.
 3. **Given** an order that was paid just before the window ended, **When** the window passes,
    **Then** it stays Paid and its stock is not returned.
 4. **Given** a payment that settles after its order expired, **When** the platform sees it,
-   **Then** [NEEDS CLARIFICATION: what happens to a late payment for an expired order — accept it
-   if stock allows, only flag it for the admin, or something else?]
+   **Then** the order stays Expired, its stock is not taken again, and the transfer is listed to
+   the shop admin as not matched.
 
 ---
 
@@ -145,17 +165,18 @@ three statuses and the paid order's transaction link.
   marked Paid once; the second transfer is recorded as not matched to any order, visible to the
   admin. The platform can't refund it (it holds no keys); the owner settles it outside the
   platform.
-- **Two waiting orders with the same total from the same buyer**: a payment matches exactly one
-  of them, the oldest, never both.
+- **A second checkout from the same account**: refused while that account has an order waiting
+  for payment in the shop (FR-005a), so one account never has two orders a transfer could fit.
+  Another account, or the same account in another shop, may check out.
 - **A payment seen and then undone by the chain** (a short reorganisation): an order counts as
   Paid only once its payment is final enough (a fixed number of blocks), so it is never reversed
   after being shown as Paid.
 - **The platform or the chain connection is down for a while**: payments that settled meanwhile
   are recognised after recovery, as long as their orders hadn't expired before the payment
   settled. Orders do not expire while the platform can't tell whether they were paid.
-- **Buyer pays from a different account than the one they connected**: [NEEDS CLARIFICATION: how
-  is a transfer matched to its order — by the paying account plus the exact amount, by a unique
-  amount per order that any account can pay, or by a reference sent with the payment?]
+- **Buyer pays from a different account than the one they connected**: the transfer doesn't
+  match; the order stays waiting (and expires), and the transfer is listed to the admin as not
+  matched. The order page only proposes payment from the order's account.
 - **Shop deleted in ShopHub while orders wait for payment**: the delete goes ahead (owner's
   choice); later transfers still reach the owner's own address, and nothing is recorded for them.
 - **Wallet address changed twice quickly**: each old address is kept until its own orders are
@@ -175,6 +196,8 @@ three statuses and the paid order's transaction link.
 - **FR-002**: The order page (reached by the order reference) MUST show the total in mUSDT, the
   shop's wallet address for this order, the time left to pay and the status, and MUST offer
   "Pay with MetaMask", which proposes a transfer of exactly the total to that address on Sepolia.
+- **FR-002a**: Checkout MUST ask the buyer to connect MetaMask and MUST record the connected
+  account as the order's paying account.
 - **FR-003**: Each order MUST record the wallet address it is to be paid to when it is placed
   (spec 003 already stores it); later wallet changes MUST NOT change it.
 - **FR-004**: The platform MUST recognise a payment from the chain itself, without relying on the
@@ -182,9 +205,14 @@ three statuses and the paid order's transaction link.
   order (FR-005) marks it **Paid**, with the transaction, paying account, amount and time.
 - **FR-005**: A transfer MUST match at most one order, and an order at most one transfer. A
   transfer of another token, to another address, of an amount other than the exact total, or
-  settled before the order was placed MUST NOT mark an order Paid. Matching rule:
-  [NEEDS CLARIFICATION: see Edge Cases — paying account plus exact amount, unique amount, or
-  payment reference].
+  settled before the order was placed MUST NOT mark an order Paid. Matching rule: a transfer pays
+  an order when it is of mUSDT, from the order's paying account, to the order's address, for
+  exactly the order's total, and settled after the order was placed while the order was waiting
+  for payment.
+- **FR-005a**: An account MUST NOT have more than one order waiting for payment in the same shop.
+  Checkout with an account that already has one MUST be refused, naming that order's reference,
+  until it is paid or expired. This holds with several copies of the shop and concurrent
+  checkouts.
 - **FR-006**: A payment MUST count only once it is final enough (a fixed number of blocks after
   the one that holds it). The order page MUST show "payment sent, confirming" in between when the
   buyer's browser reported the transaction.
@@ -200,7 +228,9 @@ three statuses and the paid order's transaction link.
   setting). Expiring MUST set it to **Expired** and return each line's quantity to its item's stock
   in one step, exactly once, even with several copies of the shop or a restart. An item deleted
   since then gets nothing back.
-- **FR-010**: Late payments: [NEEDS CLARIFICATION: see User Story 2 scenario 4].
+- **FR-010**: A payment that settles after its order expired MUST NOT revive the order or take
+  stock again; it MUST be recorded as not matched (FR-007) for the admin, who settles it outside
+  the platform.
 - **FR-011**: An order MUST NOT expire while the platform is behind on reading the chain past the
   order's deadline; it expires only once the platform has seen every block up to that deadline
   without a matching payment.
@@ -240,7 +270,8 @@ three statuses and the paid order's transaction link.
 ### Key Entities *(include if feature involves data)*
 
 - **Order** (from spec 003): reference, lines, total, the wallet address it is to be paid to, the
-  time placed, and now a payment status — waiting for payment → Paid or Expired — with a deadline
+  paying account connected at checkout (at most one waiting order per account and shop), the time
+  placed, and now a payment status — waiting for payment → Paid or Expired — with a deadline
   and, once paid, the payment that settled it.
 - **Payment**: a settled mUSDT transfer seen on the chain to a shop's address: transaction, block,
   paying account, receiving address, amount, time, and the order it matched, or none.
@@ -258,7 +289,8 @@ three statuses and the paid order's transaction link.
 - **SC-001**: A buyer with mUSDT and Sepolia ETH can pay an order from its page in under 2 minutes
   of their own time, and sees it as Paid within 2 minutes of confirming in MetaMask.
 - **SC-002**: 100% of exact payments to an order's address mark that order Paid exactly once; 0
-  transfers of the wrong token, amount or address, or duplicates, mark an order Paid. Checked by
+  transfers of the wrong token, amount, address or paying account, or duplicates, mark an order
+  Paid; 0 accounts ever hold two waiting orders in one shop. Checked by
   automated tests on a local chain for each case.
 - **SC-003**: Unpaid orders are Expired within 1 minute after their deadline and their stock is
   back exactly once, also with 3 copies of the shop and across a restart.
@@ -286,7 +318,8 @@ three statuses and the paid order's transaction link.
   itself (FR-017). Testers use their own MetaMask accounts.
 - **No refunds**: the platform holds no keys, so double or late payments are only recorded and
   shown to the admin; the owner settles them outside the platform.
-- **Buyers have no accounts**: as in spec 003, an order is reached by its reference.
+- **Buyers have no accounts**: as in spec 003, an order is reached by its reference. Checkout
+  now needs a connected MetaMask account (FR-002a), but that is not a sign-in.
 - **Out of scope**: notifications of paid orders on the shop's notification channel, refunds,
   partial payments, other tokens or chains, Web3 sign-in (optional in the requirement), Wallet
   logging (004 D-3, spec 006) and observability (spec 006).

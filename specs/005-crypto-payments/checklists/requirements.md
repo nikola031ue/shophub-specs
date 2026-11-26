@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -34,6 +34,9 @@
 - Iteration 1 (2026-11-27): two open questions, each marked twice: Q1 how a transfer is matched to
   its order (Edge Cases, FR-005); Q2 what happens to a late payment for an expired order (User
   Story 2 scenario 4, FR-010). Everything else passes.
+- Iteration 2 (2026-11-27): answered (spec "Clarifications"). Q1 → paying account plus exact
+  total, connected at checkout (FR-002a, FR-005), plus at most one waiting order per account and
+  shop (FR-005a). Q2 → late payments recorded only (FR-010). No markers remain; all items pass.
 - Named on purpose, not as implementation choices: Ethereum Sepolia, MetaMask and mUSDT are fixed
   by Requirement 2.4 and constitution Principle IV; "blocks" and "final enough" describe how a
   payment becomes certain, not how it is built.
