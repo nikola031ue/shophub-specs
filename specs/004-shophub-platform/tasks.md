@@ -557,7 +557,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
 
 **Independent test**: quickstart Scenario 8 steps 3–4.
 
-- [ ] T022 [US5] `DELETE /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular delete
+- [X] T022 [US5] `DELETE /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular delete
   dialog (`src/app/shops/delete`):
   - `confirmName` must match (trimmed, exact case) else 400; `shops.state` → `Deleting` (202);
   - reconciler deletes Shop, Wallet and DiscordChannel by name from the record (never by label
@@ -619,6 +619,11 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
       platform's `platform-alerts` remains); nothing named `suuqyuaaz2` left in `shops` (pods,
       Deployment, Service, Ingress, NetworkPolicy, Secrets, CNPG cluster, Redis);
       `https://suuqyuaaz2.shops.localhost` answers 404.
+    - Maintainer confirmed in the panel and Discord (2026-11-26): the shop showed "being
+      deleted" and then left the list; the mistyped name kept Delete disabled; `#suuqyuaaz2`
+      disappeared from Discord. The minutes until it left the list were not filled in
+      (`<X>` in the confirmation), so SC-003's 2 minutes isn't measured here. Delete was asked
+      for after 20:34:24 UTC, and everything was gone at the 20:39:20 check.
 
 ---
 
