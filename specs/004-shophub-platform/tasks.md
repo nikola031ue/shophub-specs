@@ -837,6 +837,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
       are new; only the fixed schema marker matches. Compared by key fingerprints (sha256 of
       the values inside the pod), never by printing values. The spec's edge case ("missing
       resources are put back") holds for the resource, not for the shop's data.
+      Deferred to spec 005 as plan.md D-4.
 
 ---
 
