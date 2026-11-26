@@ -598,6 +598,9 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     tests added; all 321 .NET tests pass and `dotnet format` is clean. shophub PR #13 merged as
     `04abe2a` (approved, 2026-11-26).
   - Released in shophub `v0.2.0` (see T024); live check after the rollout.
+  - The original browser test shop was never in the ShopHub database and is gone from the
+    cluster (T024). By the maintainer's decision (2026-11-26) T022's live check deletes the new
+    shop from T024's fresh browser run instead, and T021's change check uses that shop too.
 
 ---
 
@@ -645,7 +648,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     against CNPG in kind, the NetworkPolicy exists, and every `can-i` assertion held.
   - helm-charts PR #9 merged as `7ac6e3c` (approved). `publish` and `verify-public` are green,
     and chart `shophub` 0.2.0 is anonymously pullable.
-- [X] T024 Release and roll out ShopHub:
+- [ ] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
   - publish chart 0.2.0 (appVersion 0.1.0);
@@ -677,6 +680,9 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     (CNPG `shophub-db`, created 2026-11-25 17:54 UTC) has 0 owners and 0 shops, and its table
     statistics show no row was ever inserted into `owners` or `shops`. Read-only queries only;
     nothing was changed. Waiting for the maintainer before the T021/T022 live checks.
+  - **T024 reopened (maintainer, 2026-11-26):** a fresh browser end-to-end on 0.2.0 (register,
+    create, Ready, Discord channel, open, shop admin sign-in) replaces the withdrawn one. The
+    T021 and T022 live checks use the shop created in this run, not the original test shop.
   - kube-state PR #12 (branch `004-shophub-0.2.0`): chart 0.2.0, image 0.1.0, host and namespaces.
     All checks green, including `e2e`. Merged as `05791e7` (approved).
   - `./bring-up.sh` on docker-desktop: only `shophub` upgraded (0.1.0 placeholder to chart
@@ -687,7 +693,8 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     HTTP redirects to HTTPS, `/api/shops` without a session 401. `can-i` as the ServiceAccount:
     create shops and get secrets in `shops` yes; list secrets, writes in `default`, secrets in
     `shophub` no.
-  - **Browser end-to-end OK (maintainer, 2026-11-25)** at `https://shophub.localhost`:
+  - **Browser end-to-end OK (maintainer, 2026-11-25), withdrawn 2026-11-26:** it left no trace
+    in the ShopHub database (see below), so it doesn't count. What was reported:
     - registered and was signed in;
     - created one shop, which became Ready, and its Discord channel appeared;
     - opened the shop from the panel;
