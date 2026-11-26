@@ -601,6 +601,15 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - The original browser test shop was never in the ShopHub database and is gone from the
     cluster (T024). By the maintainer's decision (2026-11-26) T022's live check deletes the new
     shop from T024's fresh browser run instead, and T021's change check uses that shop too.
+  - **Live check on 0.2.0 (2026-11-26), shop `suuqyuaaz2` "Live Check 0.2.0":**
+    - T021 availability: switched to High in the panel (record saved 20:34:24 UTC). Shop `high`
+      and Ready, Deployment 3/3; the two existing pods kept running, the third started within
+      about 2 min (SC-002). The shop's database pod was untouched.
+    - T022 delete through the panel, confirmed read-only at 20:39:20 UTC: no shop record left in
+      the ShopHub database; no Shop, Wallet or DiscordChannel in any namespace (only the
+      platform's `platform-alerts` remains); nothing named `suuqyuaaz2` left in `shops` (pods,
+      Deployment, Service, Ingress, NetworkPolicy, Secrets, CNPG cluster, Redis);
+      `https://suuqyuaaz2.shops.localhost` answers 404.
 
 ---
 
