@@ -46,6 +46,14 @@ spec:
         apiVersions: ["v1alpha1"]
         operations: ["DELETE"]
         resources: ["shops"]
+  # Never block Kubernetes' own cleanup: namespace deletion and garbage collection.
+  matchConditions:
+    - name: not-a-cluster-controller
+      expression: >-
+        !(request.userInfo.username in [
+          'system:serviceaccount:kube-system:namespace-controller',
+          'system:serviceaccount:kube-system:generic-garbage-collector',
+          'system:kube-controller-manager'])
   validations:
     - expression: >-
         has(oldObject.metadata.annotations) &&
@@ -65,7 +73,9 @@ spec:
 ```
 
 Rendered when `shopDeleteGuard.enabled` (default `true`). ShopHub's delete (004 FR-013) first
-patches the annotation, then deletes; cascade unchanged.
+patches the annotation, then deletes; cascade unchanged. The `matchConditions` exemption lets the
+namespace controller and the garbage collector delete Shops, so deleting the shops namespace or a
+teardown completes; the chart's `install` job proves it (T020).
 
 ## Shop app wiring
 

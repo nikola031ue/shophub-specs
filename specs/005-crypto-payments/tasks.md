@@ -45,7 +45,8 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   `internal/chain/token_test.go` that starts Anvil (testcontainers-go, new dependency), deploys
   the committed bytecode and checks mint cap, `transfer`, and the `Transfer` event topic. Branch
   `005-token`, PR, **ask before merge**.
-- [ ] T004 [MANUAL] **M3 Remix deploy**: maintainer deploys `contracts/MockUSDT.sol` on Sepolia
+- [ ] T004 [MANUAL] **M3 Remix deploy** (only after T003 is merged, so the deployed source is the
+  reviewed, tested one): maintainer deploys `contracts/MockUSDT.sol` from `main` on Sepolia
   from their own MetaMask with the settings in `contracts/README.md`, and verifies the source on
   the explorer (quickstart M3). Agent records the address in `contracts/README.md` (PR, ask before
   merge) and in this file; it goes into kube-state in T024.
@@ -170,8 +171,11 @@ waiting = 0; readiness false while old pods run (quickstart Scenario 1, operator
   `payments.rpcSecretName` as optional `secretKeyRef` in `templates/deployment.yaml`; new
   `templates/admission-policy.yaml` (ValidatingAdmissionPolicy + Binding, research R11) and
   `templates/networkpolicy.yaml` (egress, research R13); synced CRDs; appVersion `0.4.0`, shop app
-  image default `0.3.0`; pin the kind node image in `.github/workflows/charts.yaml`; the `install`
-  job asserts a Shop `DELETE` without the annotation is denied and with it allowed. PR → **ask
+  image default `0.3.0`; pin the kind node image in `.github/workflows/charts.yaml`. The policy
+  carries the `matchConditions` exemption for the namespace controller, the garbage collector and
+  `system:kube-controller-manager` (contracts/operator.md). The `install` job asserts: a Shop
+  `DELETE` without the annotation is denied; with it, allowed; and deleting a namespace that
+  still holds an unannotated Shop finishes within 60 s (namespace and Shop gone). PR → **ask
   before merge** → published.
 
 **Checkpoint**: operator 0.4.0 and chart 0.5.0 published. Commit (spec repo).
@@ -239,6 +243,8 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
 
 ### Phase Dependencies
 
+- Phase 0 order: T001 → T002 (Secret needs the endpoint); T003 merged → T004 (Remix deploys the
+  merged source); T005 any time before Phase 4.
 - Phase 0 → everything (T003 token for operator tests; T004 address for T024; T002 for T024).
 - Phase 1 (shop) and Phase 2 (operator) can be developed in parallel once T003 is merged; the
   operator's delivery tests use a fake shop, the shop's tests call `/internal/chain` directly.

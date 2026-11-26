@@ -146,6 +146,11 @@ Decisions for the plan. Each: **Decision**, **Rationale**, **Alternatives consid
     oldObject.metadata.annotations['shophub.io/delete-requested'] == 'true'`;
   - message: "Shops are deleted through ShopHub; this Shop has no shophub.io/delete-requested
     annotation."
+  - exemption (`matchConditions`): requests from the Kubernetes controllers that delete on the
+    cluster's behalf are not evaluated, so deleting the shops namespace or a teardown never hangs:
+    `system:serviceaccount:kube-system:namespace-controller`, `system:serviceaccount:kube-system:generic-garbage-collector` and `system:kube-controller-manager` (the last one for clusters whose controller manager doesn't
+    use per-controller credentials; docker-desktop runs with
+    `--use-service-account-credentials=true`).
   ShopHub patches `shophub.io/delete-requested: "true"` onto the Shop right before deleting it
   (its Role already has `patch` on Shops). A `kubectl delete shop` without it is refused by the
   API server, so the Shop, its workloads and its data are never touched.
@@ -154,8 +159,9 @@ Decisions for the plan. Each: **Decision**, **Rationale**, **Alternatives consid
   itself). Principle V stays as written: deleting a Shop (now only possible through ShopHub)
   still removes its derived resources via owner references.
 - **Notes**: it guards against mistakes, not against cluster-admins (who can remove the binding);
-  it also blocks deleting the `shops` namespace while Shops exist, which the chart already keeps
-  on uninstall. The policy and binding are platform state in the shop-operator chart, so
+  thanks to the exemption it does not block the namespace controller or the garbage collector,
+  so deleting the shops namespace (or a whole teardown) completes; a person deleting a Shop
+  directly is still refused. The policy and binding are platform state in the shop-operator chart, so
   uninstalling the chart removes them. CI clusters need ≥ 1.30: ShopHub's k3s tests pin
   `rancher/k3s:v1.36.1-k3s1`; the helm-charts and kube-state `install`/`e2e` jobs use
   `helm/kind-action@v1.12.0` with its default node image (≥ 1.30 but not pinned), so the chart

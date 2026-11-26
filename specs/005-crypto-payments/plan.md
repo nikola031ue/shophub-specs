@@ -18,8 +18,9 @@ marks the order Paid; unpaid orders expire after 30 minutes and return their sto
   "seen through" time; one waiting order per paying account.
 - **004 follow-ups**: D-1 extends the Wallet finalizer (rollout done and 0 waiting orders, R9);
   D-4 is a ValidatingAdmissionPolicy in the shop-operator chart that denies a Shop `DELETE`
-  without ShopHub's `shophub.io/delete-requested` annotation, so a mistaken delete never happens
-  (R11); D-5 tightens readiness (R10); D-6 makes ShopHub ignore a status older than the spec
+  without ShopHub's `shophub.io/delete-requested` annotation, so a mistaken delete never happens;
+  Kubernetes' namespace controller and garbage collector are exempt, so namespace deletion and
+  teardown never hang (R11); D-5 tightens readiness (R10); D-6 makes ShopHub ignore a status older than the spec
   (R12).
 - **Token**: `MockUSDT` (6 decimals, open mint ≤ 1,000 per call) in shop-operator, tested on
   Anvil; deployed once by hand with Remix (R8).
@@ -122,7 +123,7 @@ data (orders in shop, chain reading and resources in the operator, delete intent
 
 | Phase | Content | Release |
 |-------|---------|---------|
-| 0 Manual + token | **M1** provider account, **M2** RPC Secret, token source + Anvil tests, **M3** Remix deploy | – (address recorded) |
+| 0 Manual + token | **M1** provider account, **M2** RPC Secret, token source + Anvil tests (merged **before** M3, so Remix deploys the reviewed source), **M3** Remix deploy | – (address recorded) |
 | 1 Shop app | schema (PG + Redis), checkout with paying account + FR-005a, internal API, matching, expiry job, order page (pay, mint), admin lists | shop `v0.3.0` |
 | 2 Operator | D-5 readiness; internal Secret/port/env/NetworkPolicy; watcher; delivery; Wallet D-1; chart with the D-4 delete guard and egress policy | operator `v0.4.0`, chart `shop-operator` 0.5.0 |
 | 3 ShopHub | D-6, D-4 annotation | shophub `v0.3.0`, chart `shophub` 0.2.2 |
