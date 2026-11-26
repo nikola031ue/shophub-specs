@@ -775,6 +775,30 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - **G. Clean up:** remaining test shops deleted through the panel; throwaway pods deleted by
     exact name. Record every timing here.
 
+  Run (2026-11-26):
+  - **A. Reset and bring-up — passed.**
+    - The first reset didn't take (node and namespaces still 3 days old); after the second,
+      the node and the five built-in namespaces were 2 min old.
+    - `shophub-tls` recreated with mkcert, key files removed. The maintainer created namespace
+      `shop-operator-system` and Secret `shop-operator-discord` (token length checked: 74,
+      never shown). `bring-up.sh` uses `--create-namespace`, so a namespace made first is fine.
+    - `./bring-up.sh` from 21:39:04 UTC: 6 installed, exit 0, panel 200 at 21:41:49, so
+      **2 min 45 s** (SC-009 < 15 min); no other manual step.
+    - Pods run as ServiceAccount `shophub` on `shophub:0.2.0`. `can-i` in `shops`: the three
+      kinds (get, list, watch, create, patch, delete) and `secrets` get only; nothing in
+      `default`, `shophub`, `shop-operator-system`, `traefik`, `kube-system`; no
+      ClusterRoleBinding. `platform-alerts` DiscordChannel Ready (the maintainer had removed
+      the old Discord channel by hand).
+    - Throwaway pod `t025-np` in `default`: `http://shophub.shophub.svc` timed out
+      (NetworkPolicy). A sign-in through Traefik with `X-Forwarded-For: 203.0.113.77` was
+      recorded in `signin_lockouts` as `172.18.0.5`, the real client address.
+  - **B. Accounts — passed.** Duplicate registration in other letter case with another password:
+    202 both times; the duplicate's password gives 401; unknown email gives the identical 401
+    body. A copied session cookie works before sign-out and gets 401 after it. Lockout through
+    Traefik from throwaway pods: pod A 5 × 401 then the right password 429 (its pod IP locked);
+    pod B on another IP, right password 204. A first attempt sent the right password with a
+    stray carriage return (my script, 400); rerun as above. All throwaway pods removed.
+
 ---
 
 ## Phase 9: Polish
