@@ -31,6 +31,25 @@ requires every automated test to run against a local chain, never Sepolia.
 - Q: What happens to a payment that settles after its order expired? → A: **Recorded only.** The
   order stays Expired, the transfer is listed to the shop admin as not matched, and the owner
   settles it with the buyer outside the platform. Stock is not taken again.
+- Q: How should buyers get test mUSDT to pay with? → A: **Open mint on the token**: anyone can
+  mint mUSDT directly from the token contract, capped per call (1,000 mUSDT), linked from the order
+  page as "Get test mUSDT". The platform runs no faucet and funds nothing.
+- Q: Who deploys the mUSDT token to Sepolia, and where is its address configured? → A: **The
+  maintainer, once, by hand, with Remix and their own MetaMask account**; the deploying key is
+  never stored anywhere. The token's address is a **public platform setting in kube-state** that
+  reaches every shop; it is not a Secret.
+- Q: Which Sepolia connection does the platform use to read the chain, and how is it configured?
+  → A: **A provider endpoint whose URL carries an API key** (for example Infura or Alchemy). The
+  full URL is a **hand-made Secret**, created once per cluster like the Discord token: never in
+  git, never in logs, status or responses. Notes for the plan (maintainer): catching up must read
+  the chain in small block ranges, because free provider plans limit how many blocks one query
+  may cover; and whatever watches for payments needs an explicit egress allowance to the
+  provider. (004's NetworkPolicies restrict only incoming traffic today, so nothing blocks it
+  yet; the allowance is to be planned explicitly so a later egress restriction can't cut off
+  payment detection.)
+- Q: How many blocks after the one holding a payment must pass before it counts as settled? →
+  A: **6 blocks** (about 72 s on Sepolia), a platform setting; the platform checks the chain for
+  new blocks **at least every 12 s**.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -169,7 +188,7 @@ three statuses and the paid order's transaction link.
   for payment in the shop (FR-005a), so one account never has two orders a transfer could fit.
   Another account, or the same account in another shop, may check out.
 - **A payment seen and then undone by the chain** (a short reorganisation): an order counts as
-  Paid only once its payment is final enough (a fixed number of blocks), so it is never reversed
+  Paid only once its payment is final enough (6 blocks, FR-006), so it is never reversed
   after being shown as Paid.
 - **The platform or the chain connection is down for a while**: payments that settled meanwhile
   are recognised after recovery, as long as their orders hadn't expired before the payment
@@ -213,8 +232,9 @@ three statuses and the paid order's transaction link.
   Checkout with an account that already has one MUST be refused, naming that order's reference,
   until it is paid or expired. This holds with several copies of the shop and concurrent
   checkouts.
-- **FR-006**: A payment MUST count only once it is final enough (a fixed number of blocks after
-  the one that holds it). The order page MUST show "payment sent, confirming" in between when the
+- **FR-006**: A payment MUST count only once 6 more blocks have followed the one that holds it (a
+  platform setting, default 6). The platform MUST check the chain for new blocks at least every
+  12 seconds. The order page MUST show "payment sent, confirming" in between when the
   buyer's browser reported the transaction.
 - **FR-007**: Transfers to a shop's address that match no order (wrong amount, a second payment,
   after expiry where FR-010 doesn't accept them) MUST be recorded and listed to the shop admin.
@@ -258,12 +278,21 @@ three statuses and the paid order's transaction link.
 
 **Platform and safety**
 
-- **FR-017**: The mUSDT token MUST be deployed once by the project on Sepolia (and on the local
-  test chain for tests) and MUST let anyone obtain test mUSDT for trying the shop, since it has no
-  value. Its address is a platform setting.
+- **FR-017**: The mUSDT token MUST be deployed once on Sepolia by the maintainer, by hand from
+  their own MetaMask account (Remix), with no deploying key stored by the project; tests deploy
+  the same contract on the local chain. Its source lives in a project repository with its tests. It MUST let any account mint itself up to 1,000 mUSDT per call, since it
+  has no value; the order page MUST link to that as "Get test mUSDT". The platform runs no faucet
+  and holds no funded account. Its address is a public platform setting recorded in kube-state and
+  given to every shop; it is not a Secret.
 - **FR-018**: The platform MUST NOT hold, ask for or store any private key of buyers or owners.
-  Reading the chain MUST need no key. Any chain-access credential (for example an RPC key) is a
-  secret: never in a repository, log, resource status or API response (004 SC-008 extended).
+  Reading the chain MUST need no private key. The platform reads Sepolia through a provider
+  endpoint whose URL contains an API key; that URL is a Secret made by hand once per cluster (like
+  the Discord token) and MUST never appear in a repository, log, resource status or API response
+  (004 SC-008 extended).
+- **FR-020**: Catching up after an outage (FR-008) MUST work within a free provider plan's limits
+  on how many blocks one query may cover. The part of the platform that reads the chain MUST have
+  an explicit allowance to reach the provider, so network restrictions (today incoming-only, 004)
+  never cut off payment detection.
 - **FR-019**: Every automated test touching the token or the chain MUST run against a local chain;
   CI MUST NOT use Sepolia. Sepolia is used only for the live end-to-end check (Principle IV).
 
@@ -312,10 +341,10 @@ three statuses and the paid order's transaction link.
 - **Prices in mUSDT**: a shop's prices (two decimals, spec 003) are amounts of mUSDT; no
   conversion from any other currency.
 - **Payment window**: 30 minutes, a platform setting; the same for every shop.
-- **Final enough**: a fixed small number of Sepolia blocks (on the order of a minute); the plan
-  picks it.
-- **Getting test tokens**: buyers get Sepolia ETH from a public faucet; mUSDT from the token
-  itself (FR-017). Testers use their own MetaMask accounts.
+- **Final enough**: 6 blocks after the payment's block (about 72 s on Sepolia), configurable;
+  with checks at least every 12 s this keeps SC-001's 2 minutes.
+- **Getting test tokens**: buyers get Sepolia ETH from a public faucet and mint mUSDT themselves
+  from the token (FR-017). Testers use their own MetaMask accounts.
 - **No refunds**: the platform holds no keys, so double or late payments are only recorded and
   shown to the admin; the owner settles them outside the platform.
 - **Buyers have no accounts**: as in spec 003, an order is reached by its reference. Checkout
@@ -332,5 +361,7 @@ three statuses and the paid order's transaction link.
 - Spec 002: the Wallet, Shop and DiscordChannel resources and the shop-operator; FR-012, FR-013
   and FR-015 change how it keeps Wallets, reports readiness and handles a Shop deleted outside
   ShopHub, and may need a new shop-operator release.
+- A Sepolia provider account (free plan) and its endpoint URL with API key, kept as a hand-made
+  Secret.
 - Constitution Principle IV (Sepolia, MetaMask, mUSDT, local chain for tests) and Principle V
   (user resources only through ShopHub; derived resources through the operator).

@@ -37,6 +37,11 @@
 - Iteration 2 (2026-11-27): answered (spec "Clarifications"). Q1 → paying account plus exact
   total, connected at checkout (FR-002a, FR-005), plus at most one waiting order per account and
   shop (FR-005a). Q2 → late payments recorded only (FR-010). No markers remain; all items pass.
+- Clarify session (2026-11-27), 4 questions: test mUSDT by open mint (FR-017); maintainer deploys
+  the token by hand with Remix, address a public kube-state setting (FR-017); provider endpoint
+  URL with API key as a hand-made Secret (FR-018), catch-up within free-plan query limits and an
+  explicit egress allowance (FR-020); settled after 6 blocks, checks at least every 12 s (FR-006).
+  All items still pass.
 - Named on purpose, not as implementation choices: Ethereum Sepolia, MetaMask and mUSDT are fixed
   by Requirement 2.4 and constitution Principle IV; "blocks" and "final enough" describe how a
   payment becomes certain, not how it is built.
