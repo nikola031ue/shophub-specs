@@ -459,7 +459,8 @@ tasks.md T025):
 - **SC-003:** ≤ 5.1 s and ≤ 5.5 s through the panel; 5.5 s for five API deletes; nothing left.
 - **SC-004, SC-005, SC-007:** passed (isolation 404 on every endpoint; per-address lockout; the
   ServiceAccount's permissions). SC-005's order limits were validated live in Phase 1 (T010).
-- **SC-006:** HTTPS with a trusted certificate; plain HTTP redirects; cookies `Secure`.
+- **SC-006:** HTTPS with a trusted certificate (T025); the plain-HTTP redirect and `Secure`
+  cookies were checked in T024 and T010.
 - **SC-008:** 0 matches for 9 secret values in all repositories' history, ShopHub, operator and
   Traefik logs, resource YAML and API responses. Not covered: shop logs, shop admin and Redis
   passwords (the shops had been deleted before the scan).

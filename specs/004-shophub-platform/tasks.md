@@ -896,6 +896,15 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
 - [ ] T026 `shophub/README.md` (settings, local run, tests, release); self-review of all 004 PRs;
   set spec.md status to Implemented after the maintainer's OK.
 
+  Progress (2026-11-26):
+  - shophub PR #14 (branch `004-t026-readme`): README brought to 0.2.0 (change, delete, known
+    limits D-1/D-3/D-4, release flow). Waiting for merge approval.
+  - Self-review of the 004 PRs (shophub #1–#14, helm-charts #9–#10, kube-state #9–#13,
+    shop-operator #7–#8, shop #8): findings listed to the maintainer, not fixed in 004.
+  - spec.md: limits added where it claimed more than T025 proved (D-4 next to the drift edge
+    case and FR-015, D-1/D-3 next to FR-009) and a "Validation (T025)" section. Status stays
+    Draft until the maintainer's OK.
+
 ---
 
 ## Dependencies & Execution Order
