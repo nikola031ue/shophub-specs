@@ -30,14 +30,42 @@ gone.
 Rollout in progress unless `observedGeneration ≥ generation`, `updatedReplicas ≥ desired`,
 `replicas == updatedReplicas` and no terminating replicas.
 
-## Shop deletion (D-4, research R11)
+## Shop deletion guard (D-4, research R11)
 
-Finalizer `shophub.io/data-protection` on every Shop.
-- Deleted **with** `shophub.io/delete-requested: "true"`: remove the finalizer (cascade as 004).
-- Deleted **without** it: remove owner references from the database resource (CNPG `Cluster` or
-  Redis `Redis`), Secrets `<shop>-admin` and `<shop>-internal`; then remove the finalizer. On the
-  next create of a Shop with that name, apply adopts them (owner reference set again; existing
-  Secrets are never regenerated). Event `DataKept` on the Shop.
+Shipped by the chart (not the operator binary), `templates/admission-policy.yaml`:
+
+```yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata: {name: shophub-shop-delete-guard}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["shophub.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["DELETE"]
+        resources: ["shops"]
+  validations:
+    - expression: >-
+        has(oldObject.metadata.annotations) &&
+        'shophub.io/delete-requested' in oldObject.metadata.annotations &&
+        oldObject.metadata.annotations['shophub.io/delete-requested'] == 'true'
+      message: Shops are deleted through ShopHub; this Shop has no shophub.io/delete-requested annotation.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata: {name: shophub-shop-delete-guard}
+spec:
+  policyName: shophub-shop-delete-guard
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels: {kubernetes.io/metadata.name: <shopsNamespace>}
+```
+
+Rendered when `shopDeleteGuard.enabled` (default `true`). ShopHub's delete (004 FR-013) first
+patches the annotation, then deletes; cascade unchanged.
 
 ## Shop app wiring
 
@@ -47,6 +75,6 @@ Service port `internal` 8081; NetworkPolicy ingress TCP 8081 from the operator's
 ## Chart `shop-operator` 0.5.0
 
 Values in data-model.md; `payments.rpcSecretName` referenced by `secretKeyRef` (optional);
-egress NetworkPolicy for the operator pod: DNS, TCP 443/6443 anywhere, TCP 8081 to `shops`
-(research R13). RBAC unchanged except `shops/finalizers` update and patch on the database kinds
-(already owned) for orphan/adopt.
+new templates `admission-policy.yaml` (the guard above) and `networkpolicy.yaml` (egress for
+the operator pod: DNS, TCP 443/6443 anywhere, TCP 8081 to `shops`, research R13). Operator RBAC
+unchanged.

@@ -18,8 +18,10 @@ How to prove the feature end to end. Contracts: [shop-api](contracts/shop-api.md
 - shop: matching, uniqueness, expiry guard, idempotent receipt, internal auth, on PostgreSQL and
   Redis (Testcontainers).
 - shop-operator: token on Anvil (mint cap, Transfer); watcher paging, confirmations, cursor and
-  catch-up against Anvil with a fake shop endpoint; Wallet finalizer (D-1); Shop finalizer
-  orphan/adopt (D-4); readiness (D-5) in envtest.
+  catch-up against Anvil with a fake shop endpoint; Wallet finalizer (D-1); readiness (D-5) in
+  envtest.
+- helm-charts: the delete guard (D-4) in the chart `install` job on kind: a Shop `DELETE` without
+  the annotation is denied, with it allowed.
 - shophub: stale status (D-6), annotation before delete (D-4).
 - Expected: no CI job resolves a Sepolia host (checked by a CI step that greps the workflow and
   test settings for `sepolia`/provider hosts).
@@ -66,11 +68,12 @@ Place an order on the old address; change the shop's wallet in the panel. Expect
 - Wallet `<id>-w1` stays (`WaitingForOrders`) while that order waits (D-1); paying it to the old
   address marks it Paid; `-w1` is gone within 5 min after.
 
-## Scenario 8 — Delete by hand keeps the data (D-4, SC-007)
+## Scenario 8 — A delete by hand is refused (D-4, SC-007)
 
-Note a shop's items, orders and the admin Secret's UID; `kubectl delete shop <id> -n shops` (hand
-change, recorded). Expected: event `DataKept`; ShopHub recreates the Shop; same items, orders,
-admin password (Secret UID unchanged), same database volume.
+Note a shop's items, orders, the Shop's and admin Secret's UIDs; `kubectl delete shop <id> -n
+shops` (hand attempt, recorded). Expected: denied by `shophub-shop-delete-guard` with its
+message; the Shop (same UID), items, orders, admin password and database volume unchanged; the
+shop keeps serving.
 
 ## Scenario 9 — Delete through ShopHub (004 FR-013)
 

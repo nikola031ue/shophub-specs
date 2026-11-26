@@ -134,23 +134,37 @@ Decisions for the plan. Each: **Decision**, **Rationale**, **Alternatives consid
 - **Rationale**: in T025 the Shop went Ready while an old pod still served; `replicas` counts old
   pods, so equality closes that window.
 
-## R11 — D-4: protect a Shop from a delete ShopHub didn't ask for
+## R11 — D-4: a ValidatingAdmissionPolicy refuses a Shop delete ShopHub didn't ask for
 
-- **Decision**: The operator adds finalizer `shophub.io/data-protection` to every Shop. ShopHub
-  annotates `shophub.io/delete-requested: "true"` on the Shop (patch) right before deleting it.
-  On a deletion:
-  - **with** the annotation → remove the finalizer; everything cascades as today (004 FR-013);
-  - **without** it → **orphan the data**: remove the owner reference from the shop's database
-    resource (CNPG `Cluster` or Redis), `<shop>-admin` and `<shop>-internal`, then remove the
-    finalizer. The Shop and its workloads go; ShopHub recreates the Shop within one pass (004
-    FR-015); the operator's apply finds the existing database and Secrets by name and sets the
-    owner reference again (adopt). Data, admin password and keys are unchanged.
-- **Rationale**: Kubernetes can't undo a deletion once `deletionTimestamp` is set, so "keep the
-  same object" isn't possible; keeping the data objects alive across the gap is. Only the
-  annotation, which only ShopHub writes, unlocks a real cascade.
-- **Alternatives**: hold the Shop in Terminating forever (ShopHub can't recreate a terminating
-  object; the shop stays half-dead); a validating webhook refusing deletes (needs a webhook
-  server and certificates; heavier).
+- **Decision**: The shop-operator chart ships a `ValidatingAdmissionPolicy`
+  (`admissionregistration.k8s.io/v1`, GA since Kubernetes 1.30; the local cluster runs 1.36.1
+  and serves it) plus a `ValidatingAdmissionPolicyBinding` with `validationActions: [Deny]`:
+  - match: `DELETE` of `shops.shophub.io` in the shops namespace (binding's
+    `matchResources.namespaceSelector` on `kubernetes.io/metadata.name`);
+  - validation: `has(oldObject.metadata.annotations) &&
+    'shophub.io/delete-requested' in oldObject.metadata.annotations &&
+    oldObject.metadata.annotations['shophub.io/delete-requested'] == 'true'`;
+  - message: "Shops are deleted through ShopHub; this Shop has no shophub.io/delete-requested
+    annotation."
+  ShopHub patches `shophub.io/delete-requested: "true"` onto the Shop right before deleting it
+  (its Role already has `patch` on Shops). A `kubectl delete shop` without it is refused by the
+  API server, so the Shop, its workloads and its data are never touched.
+- **Rationale**: nothing is deleted, so nothing has to be restored: the shop keeps its data and
+  keeps serving. No webhook server or certificates (the API server evaluates the CEL rule
+  itself). Principle V stays as written: deleting a Shop (now only possible through ShopHub)
+  still removes its derived resources via owner references.
+- **Notes**: it guards against mistakes, not against cluster-admins (who can remove the binding);
+  it also blocks deleting the `shops` namespace while Shops exist, which the chart already keeps
+  on uninstall. The policy and binding are platform state in the shop-operator chart, so
+  uninstalling the chart removes them. CI clusters need ≥ 1.30: ShopHub's k3s tests pin
+  `rancher/k3s:v1.36.1-k3s1`; the helm-charts and kube-state `install`/`e2e` jobs use
+  `helm/kind-action@v1.12.0` with its default node image (≥ 1.30 but not pinned), so the chart
+  PR pins the kind node image explicitly.
+- **Alternatives**: an operator finalizer that orphans and re-adopts the data on an unrequested
+  delete (works, but the Shop and its workloads still go down, Principle V's "deleting removes
+  derived resources" gets an exception, and orphan/adopt is intricate code); holding the Shop in
+  Terminating with a finalizer (ShopHub can't recreate a terminating object); a validating
+  webhook (a server and certificates for one rule).
 
 ## R12 — D-6: ShopHub ignores a status older than the spec
 
@@ -161,7 +175,8 @@ Decisions for the plan. Each: **Decision**, **Rationale**, **Alternatives consid
 
 ## R13 — Egress: an explicit allowance for the operator (FR-020)
 
-- **Decision**: The shop-operator chart adds an egress NetworkPolicy for the operator pod:
+- **Decision**: The shop-operator chart adds an egress NetworkPolicy for the operator pod (new
+  template `networkpolicy.yaml`; only the shophub chart has a fixed file list):
   DNS (53 UDP/TCP), TCP 443 and 6443 to anywhere (the provider's HTTPS endpoint and the API
   server), TCP 8081 to pods in `shops`. Shop pods keep ingress-only policies; the per-Shop policy
   adds TCP 8081 from the operator's namespace and pod labels.

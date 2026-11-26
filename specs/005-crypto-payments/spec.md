@@ -130,9 +130,9 @@ four follow-ups spec 004 deferred here (004 plan.md D-1, D-4, D-5, D-6):
   no copy with earlier settings (for example the old wallet address) is still serving.
 - **The panel never shows an outdated "ready" (D-6).** Right after an owner changes a shop, the
   panel shows it as being prepared until the platform has picked up the change.
-- **A shop deleted outside ShopHub keeps its data (D-4).** If a shop's resource is deleted by
-  mistake rather than through ShopHub, its data (items, orders, admin password) is kept; only a
-  delete the owner asked for in ShopHub removes it.
+- **A shop can't be deleted outside ShopHub (D-4).** An attempt to delete a shop's resource
+  directly, rather than through ShopHub, is refused, so its data (items, orders, admin password)
+  stays; only a delete the owner asked for in ShopHub removes it.
 
 **Why this priority**: Real payments make these gaps matter: an order placed during a rollout, or
 an unpaid order on an old address, must still be payable and recognised.
@@ -140,8 +140,8 @@ an unpaid order on an old address, must still be payable and recognised.
 **Independent Test**: Change a shop's wallet address while an order on the old address is unpaid
 and the shop is rolling out; check the shop is not reported ready while an old copy serves, the
 panel shows "being prepared" at once, the old wallet stays until that order is paid or expired,
-and paying it marks it Paid. Separately, delete a shop's resource by hand and check its items and
-orders survive.
+and paying it marks it Paid. Separately, try to delete a shop's resource by hand and check it is
+refused and the shop is untouched.
 
 **Acceptance Scenarios**:
 
@@ -153,8 +153,9 @@ orders survive.
    **Then** the shop is not reported ready, in the cluster or in the panel.
 4. **Given** the owner has just saved a change, **When** the panel shows the shop before the
    platform picked it up, **Then** it shows "being prepared", not "ready".
-5. **Given** a shop's resource deleted by hand, **When** ShopHub puts it back, **Then** the shop
-   has the same items, orders and admin password as before.
+5. **Given** a shop running normally, **When** someone deletes its resource directly instead of
+   through ShopHub, **Then** the delete is refused with a message saying shops are deleted through
+   ShopHub, and the shop keeps serving with the same items, orders and admin password.
 6. **Given** an owner deletes a shop in ShopHub (004 FR-013), **When** the delete completes,
    **Then** everything is removed as before, within 2 minutes.
 
@@ -265,10 +266,10 @@ three statuses and the paid order's transaction link.
   current settings; a copy with earlier settings still serving keeps it not ready.
 - **FR-014** (D-6): The panel MUST show a shop as being prepared while the platform has not yet
   picked up its latest change, whatever an earlier status said.
-- **FR-015** (D-4): A shop's data MUST survive a deletion of its resource that ShopHub didn't ask
-  for: the resource and its data stay until ShopHub has marked the shop for deletion (004
-  FR-013), and ShopHub's restore (004 FR-015) then finds the same shop. A delete the owner asked
-  for in ShopHub MUST still remove everything within 2 minutes (004 SC-003).
+- **FR-015** (D-4): A deletion of a shop's resource that ShopHub didn't ask for MUST be refused,
+  so the resource and its data stay; only a shop ShopHub has marked for deletion (004 FR-013) can
+  be deleted. A delete the owner asked for in ShopHub MUST still remove everything within 2
+  minutes (004 SC-003).
 
 **Admin view (User Story 4)**
 
@@ -309,7 +310,7 @@ three statuses and the paid order's transaction link.
 - **Wallet** (from specs 002/004): the shop's receiving address. An old one now outlives a wallet
   change until its orders are settled (FR-012).
 - **Shop** (from specs 002/004): now reported ready only when every copy runs current settings
-  (FR-013), and its data is kept unless ShopHub deletes it (FR-015).
+  (FR-013), and can be deleted only after ShopHub has marked it for deletion (FR-015).
 
 ## Success Criteria *(mandatory)*
 
@@ -331,8 +332,8 @@ three statuses and the paid order's transaction link.
   order is settled.
 - **SC-006**: After a wallet change, 0 orders are placed with the old address once the shop is
   reported ready; the panel shows "being prepared" within 5 seconds of the save until then.
-- **SC-007**: A shop whose resource was deleted by hand comes back with 100% of its items, orders
-  and its admin password unchanged.
+- **SC-007**: 100% of attempts to delete a shop's resource outside ShopHub are refused, and the
+  shop keeps all of its items, orders and its admin password.
 - **SC-008**: 0 private keys and 0 chain-access credentials in any repository, log, resource
   status or API response; 0 CI runs contact Sepolia.
 

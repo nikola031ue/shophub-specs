@@ -75,9 +75,9 @@ Spec is unchanged (no CRD schema change beyond status fields; chart bumps the CR
 
 ### Shop
 
-- Finalizer `shophub.io/data-protection` on every Shop (R11).
 - Annotation `shophub.io/delete-requested: "true"`, written only by ShopHub immediately before
-  its delete. Without it, a deletion orphans the data objects and the next create adopts them.
+  its delete. A `DELETE` of a Shop without it is denied by the API server (ValidatingAdmissionPolicy
+  `shophub-shop-delete-guard`, R11); nothing else about deletion changes.
 - Readiness (R10): rollout in progress unless `replicas == updatedReplicas` (and no terminating
   replicas) besides the existing checks.
 - New env for the shop app: `TOKEN_ADDRESS`, `CHAIN_ID` (11155111), `EXPLORER_TX_URL`
@@ -91,7 +91,7 @@ Spec is unchanged (no CRD schema change beyond status fields; chart bumps the CR
 
 | Secret | Owner | Content |
 |--------|-------|---------|
-| `<shop>-internal` | Shop (orphaned and re-adopted under R11) | `token`: 32 random bytes, base64; generated once, never regenerated while it exists |
+| `<shop>-internal` | Shop | `token`: 32 random bytes, base64; generated once, never regenerated while it exists |
 
 ### Platform settings and Secrets (chart `shop-operator`, kube-state values)
 
@@ -105,6 +105,7 @@ Spec is unchanged (no CRD schema change beyond status fields; chart bumps the CR
 | `payments.orderPaymentMinutes` | public | `30` |
 | `payments.explorerTxUrl` | public | `https://sepolia.etherscan.io/tx/` |
 | `payments.rpcSecretName` | Secret reference | `shop-operator-rpc` (key `url`), **made by hand**, optional like the Discord token |
+| `shopDeleteGuard.enabled` | public | `true`: the ValidatingAdmissionPolicy and its binding (R11) |
 
 ## ShopHub (repo `shophub`)
 
