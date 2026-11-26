@@ -865,7 +865,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - **E4. Mistyped name — passed** (maintainer, panel): lower-case `light` kept Delete
     disabled. Both shops showed "being deleted" and then left the list. The API 400 for a
     mistyped name needs owner A's session (the maintainer's browser), so it rests on the API
-    tests. Discord: the maintainer's line was left unfilled (`<gone / still there>`); read-only,
+    tests. Discord: both shop channels gone from the server (maintainer, 2026-11-26); read-only,
     no shop DiscordChannel is left in the cluster, only `platform-alerts`.
   - **F. Secret sweep — 0 matches (SC-008), with gaps.** A script read 9 values in-process
     and printed only names and counts: ShopHub DB password, URI and JDBC URI; the Discord token;
@@ -884,8 +884,10 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - **Summary:** SC-009 2 min 45 s (bring-up), 2 min 42 s (tag to image); SC-002 Ready in
     23–37 s, high in 11 s; SC-003 ≤ 5.1 s and ≤ 5.5 s (panel), 5.5 s (five API deletes); drift
     restored in 10.1 s; SC-004 and SC-005 passed; SC-008 0 matches with the gaps above.
-    **SC-001 not cleanly measured:** derived 4 min 10 s – 5 min 54 s. Findings: D-1 rollout
-    window, D-3 Wallet logging, D-4 drift wipes shop data.
+    **SC-001 met on platform latency (maintainer, 2026-11-26):** the platform part, Create to
+    Ready, was 37 s for `Acme`; the rest of the derived 4 min 10 s – 5 min 54 s was the
+    maintainer's idle time before Create (3 min 33 s) and before opening the storefront.
+    Findings: D-1 rollout window, D-3 Wallet logging, D-4 drift wipes shop data.
 
 ---
 
