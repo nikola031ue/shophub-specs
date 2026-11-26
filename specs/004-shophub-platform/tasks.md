@@ -893,22 +893,26 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
 
 ## Phase 9: Polish
 
-- [ ] T026 `shophub/README.md` (settings, local run, tests, release); self-review of all 004 PRs;
+- [X] T026 `shophub/README.md` (settings, local run, tests, release); self-review of all 004 PRs;
   set spec.md status to Implemented after the maintainer's OK.
 
   Progress (2026-11-26):
   - shophub PR #14 (branch `004-t026-readme`): README brought to 0.2.0 (change, delete, known
-    limits D-1/D-3/D-4, release flow). Waiting for merge approval.
+    limits D-1/D-3/D-4, release flow). Merged as `1fd5a9a` (approved) after #15.
   - #14's `test` failed on `AShopBeingDeletedCannotBeChanged`: a race from #12 (the app's own
     reconciler removes a hand-marked `Deleting` row when nothing of it is left). Fixed in
     shophub PR #15 (test-only: the fake cluster keeps the Shop "still there"); reproduced with a
-    32 s pause, fails without the fix and passes with it; CI green. #14 needs a CI re-run
-    after #15 is merged.
+    32 s pause, fails without the fix and passes with it; CI green. Merged as `0f1264d`
+    (approved); #14's branch was then updated onto main so its CI ran with the fix (green).
   - Self-review of the 004 PRs (shophub #1–#14, helm-charts #9–#10, kube-state #9–#13,
-    shop-operator #7–#8, shop #8): findings listed to the maintainer, not fixed in 004.
+    shop-operator #7–#8, shop #8): 12 findings listed to the maintainer. #4 (test race) fixed in
+    shophub #15; #1 and #2 deferred to spec 005 as plan.md D-5 and D-6 (they widen D-1's
+    window); #3, #5, #12 are D-1, D-4, D-3; #6, #7, #8, #10, #11 fixed in kube-state PR #14
+    (README, open, waiting for merge approval); #9 (Traefik access log, `SafeNaming`) left for
+    spec 006.
   - spec.md: limits added where it claimed more than T025 proved (D-4 next to the drift edge
-    case and FR-015, D-1/D-3 next to FR-009) and a "Validation (T025)" section. Status stays
-    Draft until the maintainer's OK.
+    case and FR-015, D-1/D-3 next to FR-009) and a "Validation (T025)" section. Status set to
+    Implemented (maintainer's OK, 2026-11-26).
 
 ---
 

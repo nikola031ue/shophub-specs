@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-24
 
-**Status**: Draft
+**Status**: Implemented (2026-11-26, maintainer's OK; limits in "Validation (T025)")
 
 **Input**: User description: "ShopHub platform (requirements 1.1, 1.2, 3.3 from ShopHub.md): Angular
 + .NET web app where a registered user signs in and creates, configures (availability standard=2/
