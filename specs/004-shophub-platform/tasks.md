@@ -899,6 +899,11 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   Progress (2026-11-26):
   - shophub PR #14 (branch `004-t026-readme`): README brought to 0.2.0 (change, delete, known
     limits D-1/D-3/D-4, release flow). Waiting for merge approval.
+  - #14's `test` failed on `AShopBeingDeletedCannotBeChanged`: a race from #12 (the app's own
+    reconciler removes a hand-marked `Deleting` row when nothing of it is left). Fixed in
+    shophub PR #15 (test-only: the fake cluster keeps the Shop "still there"); reproduced with a
+    32 s pause, fails without the fix and passes with it; CI green. #14 needs a CI re-run
+    after #15 is merged.
   - Self-review of the 004 PRs (shophub #1–#14, helm-charts #9–#10, kube-state #9–#13,
     shop-operator #7–#8, shop #8): findings listed to the maintainer, not fixed in 004.
   - spec.md: limits added where it claimed more than T025 proved (D-4 next to the drift edge
