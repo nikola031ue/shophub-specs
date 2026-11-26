@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-24
 
-**Status**: Draft
+**Status**: Implemented (2026-11-26, maintainer's OK; limits in "Validation (T025)")
 
 **Input**: User description: "ShopHub platform (requirements 1.1, 1.2, 3.3 from ShopHub.md): Angular
 + .NET web app where a registered user signs in and creates, configures (availability standard=2/
@@ -106,10 +106,11 @@ panel. A second account cannot see the first one's panel.
 **Acceptance Scenarios**:
 
 1. **Given** no account for an email, **When** the visitor registers with that email and a valid
-   password, **Then** the account exists and the visitor is signed in to an empty shop panel.
+   password, **Then** the account exists, and the panel signs them in with those credentials to an
+   empty shop panel.
 2. **Given** an existing account, **When** someone registers again with the same email in any
-   letter case, **Then** registration is refused with a message that does not reveal whether the
-   account exists beyond what registration needs.
+   letter case, **Then** the registration response is the same as for a new account (no account
+   is created or changed), and signing in with the new password fails with the generic error.
 3. **Given** a registered owner, **When** they sign in with the right password, **Then** they
    reach their shop panel. With a wrong password they get a generic error.
 4. **Given** 5 failed sign-ins for one account from one client address within 15 minutes,
@@ -218,7 +219,9 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
 - **User resources changed or deleted outside ShopHub** (by mistake): ShopHub's record of each
   shop is authoritative. Missing or drifted Shop, Wallet and DiscordChannel resources are put
   back (Principle V: restoring runtime state is the backend's job). Shops ShopHub has no record
-  of are never touched.
+  of are never touched. **Limit (validated in T025):** putting back a deleted Shop restores the
+  resource, not its data. The operator removes the shop's database, admin password and keys with
+  the Shop, so the shop comes back empty (plan.md D-4, spec 005).
 - **Shop stuck while being prepared** (database operator missing, cluster out of capacity,
   Discord unavailable): after 10 minutes, the panel shows that preparation is taking unusually
   long, plus the plain reason. The owner can still delete the shop.
@@ -247,12 +250,20 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
 
 - **FR-001**: Visitors MUST be able to register with an email address and a password of at least
   12 characters. Emails are unique regardless of letter case. No email verification is sent
-  (Assumptions).
+  (Assumptions). No account enumeration (decided 2026-11-25): registering with an email that
+  already has an account MUST give the same response, with similar timing, as registering a new
+  one; signing in with an unknown email MUST give the same response, with similar timing, as a
+  wrong password.
 - **FR-002**: Registered owners MUST be able to sign in and sign out. A session lasts at most 8
-  hours. Sign-out ends that session, and a copied cookie stops working.
+  hours. Sign-out ends that session, and a copied cookie stops working. Changing the password
+  MUST end every other session of that owner, keeping only the session that made the change
+  (decided 2026-11-25); a stolen cookie of another session stops working.
 - **FR-003**: After 5 failed sign-ins for one account from one client address within 15
   minutes, further sign-ins for that account from that address MUST be refused for 15 minutes,
-  even with the right password.
+  even with the right password. An account-wide ceiling MUST also apply (decided 2026-11-25):
+  50 failed sign-ins for one account across all addresses within 15 minutes lock that account
+  from every address for 15 minutes. Other accounts are never affected, and attempts made while
+  a lock applies don't count, so one address alone can't trigger the account-wide lock.
 - **FR-004**: Passwords MUST be stored only as salted, slow hashes. Session cookies MUST be
   Secure, HttpOnly and SameSite=Strict, and state-changing requests MUST carry an anti-forgery
   token.
@@ -280,7 +291,10 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
   NOT create generated Wallets, and the platform holds no keys for shops. Because a Wallet's
   address is immutable, changing a shop's wallet address MUST create a new registered Wallet,
   point the Shop at it, and then delete the old Wallet. The old Wallet's deletion waits until no
-  Shop uses it (002 `InUse`).
+  Shop uses it (002 `InUse`). **Limits:** it doesn't wait for unpaid orders, or for orders
+  taken by old copies while the change rolls out, that still carry the old address (plan.md D-1,
+  spec 005). Wallet creates and deletes aren't logged, so the swap order can't be traced from logs
+  (plan.md D-3, spec 006).
 - **FR-010**: Clicking a ready shop MUST open its storefront in a new browser tab at the shop's
   address. The link MUST NOT give the new tab access to the panel window.
 - **FR-011**: An owner MUST NOT have more than 5 shops at a time (including shops being
@@ -297,7 +311,8 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
   without its Shop.
 - **FR-015**: ShopHub MUST keep its own record of each shop's owner and desired configuration.
   It MUST put back missing or drifted user resources of shops it knows. It MUST NOT touch
-  resources it has no record of.
+  resources it has no record of. (Resources only: a deleted Shop's data is not restored, see the
+  edge case above and plan.md D-4.)
 - **FR-016**: **Shop admin hand-off**: the owner MUST be able to reach their shop's admin area
   and sign in as its shop admin (spec 003: one admin per shop, initial password generated by the
   operator into `<shop>-admin`).
@@ -429,6 +444,29 @@ from the list, their addresses stop answering, and nothing of theirs is left in 
 - **SC-010**: Repeating a create (double submit or retry) never produces a second shop, and a
   create interrupted mid-way never leaves a wallet or channel without its shop. Checked by tests
   that interrupt each step.
+
+## Validation (T025, 2026-11-26)
+
+What the live run on an empty Docker Desktop cluster proved, and where it stops (details in
+tasks.md T025):
+
+- **SC-001:** met on platform latency, by the maintainer's decision. Create to Ready took 37 s
+  (standard) and 23 s (light); registration to first storefront open was only bounded (4 min
+  10 s – 5 min 54 s, derived), most of it the maintainer's idle time before creating.
+- **SC-002:** listed at once; Ready in 23–37 s; high reached 3/3 in 11 s; after a wallet change a
+  new order carried the new address and the earlier order kept the old one. During the rollout
+  an old copy still served for a few seconds while the Shop already reported Ready (plan.md D-1).
+- **SC-003:** ≤ 5.1 s and ≤ 5.5 s through the panel; 5.5 s for five API deletes; nothing left.
+- **SC-004, SC-005, SC-007:** passed (isolation 404 on every endpoint; per-address lockout; the
+  ServiceAccount's permissions). SC-005's order limits were validated live in Phase 1 (T010).
+- **SC-006:** HTTPS with a trusted certificate (T025); the plain-HTTP redirect and `Secure`
+  cookies were checked in T024 and T010.
+- **SC-008:** 0 matches for 9 secret values in all repositories' history, ShopHub, operator and
+  Traefik logs, resource YAML and API responses. Not covered: shop logs, shop admin and Redis
+  passwords (the shops had been deleted before the scan).
+- **SC-009:** bring-up 2 min 45 s; tag to pullable image 2 min 42 s.
+- **Not proved:** the time order of a wallet swap (`-w2` Ready before `-w1` deleted) was seen only
+  as an end state (plan.md D-3); a deleted Shop is restored without its data (plan.md D-4).
 
 ## Assumptions
 

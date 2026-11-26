@@ -76,7 +76,10 @@ After shop `v0.2.0` is rolled out:
    - 5 wrong admin sign-ins from pod A, then the right password from pod B: **204**.
    - Pod A gets 429.
 2. Pod A sends `X-Forwarded-For: <pod B IP>` itself. Expected: still treated as pod A.
-3. Pod A places 10 orders, then pod B places one. Expected: pod B **201**, pod A's 11th **429**.
+3. Pod A places orders until refused, then pod B places one. The limit (10 per minute) is held in
+   memory by each replica and Traefik spreads requests over them, so pod A gets up to
+   10 × replicas (20 for `standard`, 30 for `high`). Expected: pod A's orders are **201** until
+   at most 10 × replicas, then **429**; pod B's order right after is **201**.
 4. Sign in through the browser. Expected: session and anti-forgery cookies are `Secure`.
 5. `GET /api/shop` shows `adminPasswordChanged: false`, then `true` after a password change.
 
@@ -93,7 +96,7 @@ After the `shophub` kube-state PR: run `./bring-up.sh`. Expected:
 - In every other namespace it lists nothing beyond discovery.
 - From a throwaway pod in `default`, `curl http://shophub.shophub.svc` fails (NetworkPolicy). A
   sign-in through Traefik with a forged `X-Forwarded-For` is recorded with the real client
-  address in `signin_failures`.
+  address in `signin_lockouts`.
 
 **Required full run (FR-028, SC-009)**: reset the Docker Desktop cluster, recreate the hand-made
 Secrets (TLS, Discord token), run `./bring-up.sh` and time it to a working
@@ -103,7 +106,8 @@ from pushing the `v0.1.0` tag to a pullable image (under 15 min).
 ## Scenario 5 — Accounts (US2, FR-001–FR-005)
 
 1. Register `a@example.test`, sign out, sign in. A duplicate registration (any letter case) gets
-   409.
+   the same 202 as a new one, and signing in with the duplicate's password gets 401. Sign-in with
+   an unknown email gets the same 401 body as a wrong password.
 2. Five wrong passwords from one address, then the right one from that address: 429. From
    another address (Scenario 3 method): it works.
 3. Copy the session cookie, sign out, replay the cookie. Expected: 401.

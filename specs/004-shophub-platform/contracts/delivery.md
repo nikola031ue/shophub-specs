@@ -48,13 +48,23 @@ Actions pinned by SHA, `permissions: {}` at the top. Branch protection (asked fi
 
 ## Chart `helm-charts/charts/shophub` 0.2.0 (replaces the 0.1.0 placeholder)
 
+**Template files (T023):** Requirement 5.3 is eliminatory and fixes the `shophub` template files
+(`NOTES.txt`, `_helpers.tpl`, `deployment.yaml`, `hpa.yaml`, `ingress.yaml`, `service.yaml`,
+`serviceaccount.yaml`), and the helm-charts `layout` check enforces that exact list. So the rows
+below marked "(new)" are separate objects but not separate files:
+- the Role and RoleBinding render from `serviceaccount.yaml`;
+- the CNPG Cluster renders from `deployment.yaml`;
+- the NetworkPolicy renders from `ingress.yaml`.
+
+The drift check selects them by kind.
+
 | Template | Content |
 |----------|---------|
 | `deployment.yaml` | 2 replicas, image `ghcr.io/nikola031ue/shophub:<appVersion>`, non-root, readiness `/healthz`, memory 128Mi/256Mi, env from values and the CNPG Secret |
 | `service.yaml` | ClusterIP 80 → 8080 |
 | `ingress.yaml` | class `traefik`, host `shophub.localhost`, no `tls` block (default certificate) |
 | `serviceaccount.yaml` | `shophub` |
-| `rbac.yaml` (new) | Role + RoleBinding **in `shopsNamespace` only**: `shophub.io` `shops`, `wallets`, `discordchannels`: `get list watch create patch delete` (server-side apply needs `create` and `patch`); `""` `secrets`: `get` only (used only for `<id>-admin`). No ClusterRole |
+| `rbac.yaml` (new) | Role + RoleBinding **in `shopsNamespace` only**: `shophub.io` `shops`, `wallets`, `discordchannels`: `get list watch create patch delete` (server-side apply needs `create` and `patch`); `""` `secrets`: `get` only (used only for `<id>-admin`). No ClusterRole. RBAC can't narrow `get` to a name pattern (`resourceNames` needs fixed names), so the ServiceAccount could read any Secret in `shops` whose name it knows; the gateway reads only `<id>-admin`, with no list or watch, and the k3s tests prove it by recording every request (T014). Accepted by the maintainer (2026-11-25); CI fails if the chart's rendered Role differs from the tested manifest (T023) |
 | `database.yaml` (new) | CNPG `Cluster` `shophub-db`, 1 instance, 1Gi |
 | `networkpolicy.yaml` (new) | Selects the ShopHub app pods only: ingress TCP 8080 only from pods with the Traefik labels in namespace `traefik`. Database pods are not selected, so the app still reaches them |
 | `hpa.yaml` | kept, disabled by default |

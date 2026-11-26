@@ -112,21 +112,22 @@ Two notes for quickstart users on Windows:
     a DiscordChannel in the operator namespace is reconciled, one elsewhere is not;
     run via `optest.sh` in the dev container;
   - `README.md`: flags, RBAC, namespace.
-- [ ] T005 [US1] Chart `helm-charts/charts/shop-operator` 0.4.0:
+- [X] T005 [US1] Chart `helm-charts/charts/shop-operator` 0.4.0:
   - `templates/namespace.yaml` (`shops`, label `shophub.io/shops: "true"`);
   - Role + RoleBinding in `shopsNamespace`, Role `…-platform-channels` in the release namespace
     (research R4), leader-election Role unchanged; ClusterRole/Binding removed;
   - values `shopsNamespace`, `shopDomain`, `ingressClassName`, `trustedProxyHost`,
     `shophubNamespace` wired to the flags; chart README and lint/template CI pass.
-- [ ] T006 [US1] Release and roll out 1B:
+- [X] T006 [US1] Release and roll out 1B:
   - operator PR → **ask before merge** → tag `v0.3.0` → image;
-  - helm-charts PR (chart 0.4.0, appVersion 0.3.0) → **ask before merge** → publish;
+  - helm-charts PR (chart 0.4.0, appVersion 0.3.1) → **ask before merge** → publish;
   - kube-state PR (`clusters/local/shop-operator/helm.yaml` 0.4.0; `shophub-discord`
     `targetNamespace: shop-operator-system`) → before merging, the hand migration in quickstart
     Scenario 1 step 1 (a, b) while 0.2.1 runs → **ask before merge** → `./bring-up.sh`;
   - live: quickstart Scenario 1 steps 2–4 (two hand-made test Shops in `shops`) and Scenario 2
     (`kubectl auth can-i` matrix, no ClusterRoleBinding, NetworkPolicy blocks `default` and allows
-    `traefik`/`shophub`). Keep the test Shops for 1C.
+    `traefik`/`shophub`). Test Shops deleted afterwards (maintainer's decision, 2026-11-25); 1C
+    creates its own.
 
 **Progress 1B (2026-11-24)**:
 - The platform alerts DiscordChannel moves to the operator namespace (decision recorded in
@@ -137,12 +138,52 @@ Two notes for quickstart users on Windows:
 - T005 chart 0.4.0 is committed locally in helm-charts (branch `004-shop-operator-0.4.0`). Its PR
   waits for the `v0.3.0` image, because CI installs the chart with its default `appVersion`.
 
+**Progress 1B (2026-11-25)**:
+- Before the merge, shops' forwarded-header trust was changed to Traefik only
+  (`TRUSTED_PROXY_HOST`, research R5 revised) and the CRD now rejects dotted Shop names (FR-021).
+- shop-operator PR #7 merged (`f2d8726`), tagged `v0.3.0`.
+- The Shop NetworkPolicy's ShopHub peer was narrowed to the ShopHub app pods
+  (`--shophub-pod-selector`, default `app.kubernetes.io/name=shophub,app.kubernetes.io/instance=shophub`): shop-operator PR #8 merged (`3d2e90f`), tagged
+  `v0.3.1`, image published.
+- T005 done: helm-charts PR #8 merged (`4bb9e0a`), chart `shop-operator` 0.4.0 with appVersion
+  0.3.1 published; CI install job green.
+- T006 done:
+  - Hand migration while operator 0.2.1 ran: `platform-alerts` in `shophub` deleted in under 5 s
+    (the finalizer removes itself only after the Discord delete succeeds); nothing named
+    `platform-alerts` left in `shophub`; `helm uninstall shophub-discord -n shophub`.
+  - kube-state PR #10 merged (`7a7615a`); bring-up: `1 installed, 1 upgraded, 4 unchanged`
+    (shop-operator 0.4.0 upgraded, image 0.3.1; shophub-discord installed in
+    `shop-operator-system`). `platform-alerts` Ready there with a new webhook Secret within
+    15 s; Discord shows exactly one `platform-alerts` channel. Namespace `shops` created with
+    label `shophub.io/shops=true`.
+  - Scenario 1: test Shops `p1b-a`, `p1b-b` (registered Wallets, own DiscordChannels, database
+    light) Ready within 30 s, status `url` `https://p1b-{a,b}.shops.localhost`. From Windows:
+    HTTPS 200 with the certificate verified (Schannel `ssl_verify_result=0`), `http://` → 301 to
+    `https://`, `/api/shop` returns `Phase 1B A` / `Phase 1B B`. Deleting `p1b-a`: its host
+    returned 404 after 1 s while `p1b-b` kept 200. A dotted name (`dot.shop`) is rejected by the
+    API server.
+  - Scenario 2: `can-i get secrets` yes only in `shops` and `shop-operator-system`; no in
+    `shophub`, `cnpg-system`, `traefik`, `default`; token by name yes; no cluster-wide list of
+    Shops or namespaces; no ClusterRole or ClusterRoleBinding (Roles: manager in `shops`,
+    platform-channels and leader-election in `shop-operator-system`). NetworkPolicy: from a
+    throwaway pod in `default` the shop Service times out (000); from the ShopHub app pod
+    `/api/shop` answers 200; through Traefik 200. The policy's ShopHub peer carries the pod
+    selector. Deployment env `TRUSTED_PROXY_HOST=traefik-proxies.traefik.svc.cluster.local`
+    (honoured from shop 0.2.0, 1C).
+  - Pod selector check (2026-11-25, maintainer-approved): temporary Shop `np-check` in `shops`;
+    a throwaway pod in `shophub` without ShopHub labels (`kubectl run --rm`, label
+    `purpose=np-probe`) timed out against `http://np-check.shops.svc/api/shop` (000 after 5 s),
+    while the ShopHub app pod got 200. The Shop, its DiscordChannel and Wallet were then deleted
+    through the operator; `shops` is empty again.
+  - Cleanup through the operator: both Shops, both DiscordChannels and both Wallets deleted;
+    `shops` is empty; Discord shows no `p1b-*` channels, only `platform-alerts`.
+
 **Checkpoint 1B**: shops reachable at `https://<shop>.shops.localhost`; R-1 closed (SC-007 for
 the operator).
 
 ### 1C — shop `v0.2.0` (release: tag → kube-state)
 
-- [ ] T007 [P] [US1] Forwarded headers, cookies and order limit in `shop/src/Shop.Api/`:
+- [X] T007 [P] [US1] Forwarded headers, cookies and order limit in `shop/src/Shop.Api/`:
   - `Settings.cs`: optional `TRUSTED_PROXY_HOST` (research R5);
   - new `ForwardedHeaders.cs`: `XForwardedFor | XForwardedProto`, trusted proxies are the
     addresses of `TRUSTED_PROXY_HOST` resolved by DNS every 30 s (same approach as ShopHub
@@ -152,7 +193,7 @@ the operator).
   - tests: header honoured from a resolved Traefik address, ignored from any other peer
     (including one inside the pod network, i.e. a ShopHub pod) and when the lookup fails; two addresses get
     separate order limits; `Secure` flag set.
-- [ ] T008 [P] [US1] Admin lockout per (account, client address) with shop-wide ceiling (FR-023),
+- [X] T008 [P] [US1] Admin lockout per (account, client address) with shop-wide ceiling (FR-023),
   both stores, per data-model.md "shop app 0.2.0 storage additions":
   - `shop/src/Shop.Api/Storage/Scripts/003_lockout_per_account_address.sql` (`admin_lockouts`,
     PK `(account, address)`);
@@ -165,15 +206,57 @@ the operator).
     account from another address signs in; **5 failures for account `admin` from address A don't
     lock a different account from A** (store contract test with a second account name, since the
     app has one admin); 50 failures across addresses lock all; window expiry.
-- [ ] T009 [P] [US1] `GET /api/shop` returns `{name, adminPasswordChanged}` (false while the
+- [X] T009 [P] [US1] `GET /api/shop` returns `{name, adminPasswordChanged}` (false while the
   operator-generated password is in use, true after a change) in `shop/src/Shop.Api/Endpoints/`,
   with tests on both stores; README updated for T007–T009.
-- [ ] T010 [US1] Release and roll out 1C:
+- [X] T010 [US1] Release and roll out 1C:
   - shop PR → **ask before merge** → tag `v0.2.0` → image;
   - kube-state PR (`clusters/local/shop-operator/values.yaml` `shopImage.tag: "0.2.0"`) → **ask
     before merge** → `./bring-up.sh`;
   - live: quickstart Scenario 3 through the Traefik Service from two throwaway pods; then delete
     the Phase 1 test Shops, Wallets, DiscordChannels and pods.
+
+**Progress 1C (2026-11-25)**:
+- T007–T009 done: shop PR #8 (branch `004-shop-0.2.0`), 208 tests passing on PostgreSQL and Redis
+  (Testcontainers), `dotnet format` clean.
+- Finding: with `CookieSecurePolicy.Always`, ASP.NET Core antiforgery throws on any plain-HTTP
+  request. The Traefik-to-pod hop is HTTP, so a failed `TRUSTED_PROXY_HOST` lookup would have
+  turned every admin request into a 500. Every cookie is now marked `Secure` by the cookie policy
+  middleware instead; antiforgery keeps `SameAsRequest`. FR-025 still holds (tested over plain
+  HTTP).
+- The PostgreSQL migration file lives at `Storage/Postgres/Scripts/003_lockout_per_account_address.sql`
+  (the repo's existing layout); stale `admin_lockouts` rows are pruned on each failure.
+- Review before merge (maintainer): the shop-wide counter can't be fed by unknown account names
+  (the login takes only a password; the account is always `admin`). But attempts that passed the
+  lock check concurrently were still counted shop-wide after their (account, address) pair had
+  locked, so one address could reach the 50-failure ceiling with a burst. Fixed: a failure while
+  either scope is locked changes neither (`LockoutState.ApplyFailure`, `failed_signin.lua`).
+  Tests: 60 concurrent failures from one address on three replicas leave the shop-wide count at
+  5; the same burst over HTTP locks only that address; both failed against the old code. 215
+  tests passing.
+- shop PR #8 merged (`79a8ec3`), tagged `v0.2.0`, image `ghcr.io/nikola031ue/shop:0.2.0`
+  published. kube-state PR #11 (`shopImage.tag: "0.2.0"`) open, CI green.
+- T010 done:
+  - kube-state PR #11 merged (`7d0e1e5`); bring-up: `0 installed, 1 upgraded, 5 unchanged`
+    (shop-operator re-rendered with `--shop-image-tag=0.2.0`).
+  - Test Shops `p1c-a` (database standard, PostgreSQL on CNPG, so migration 003 ran for real) and
+    `p1c-b` (light, Redis), both Ready on `shop:0.2.0`, 2 replicas each. Probes: two throwaway
+    pods (`10.244.0.95` pod A, `10.244.0.96` pod B) in throwaway namespace `p1c-probe`, over
+    HTTPS through the Traefik Service (`--resolve` to its ClusterIP). The admin password went to
+    the pods on stdin and was never printed.
+  - Scenario 3 on `p1c-a`: (1) 5 wrong sign-ins from A → 401 ×5; right password from B → 204;
+    right password from A → 429. (2) A with `X-Forwarded-For: 10.244.0.96` → still 429. The
+    `admin_lockouts` table held `('admin', '10.244.0.95')` locked and `('*', '*')` at 5: A's two
+    attempts while locked were not counted shop-wide. (3) A's orders: 201 ×20, then 429 (2
+    replicas × 10, per-replica limit); B's order right after: 201. Quickstart step 3 corrected
+    to 10 × replicas. (4) Cookie jar: `shop.session`, `shop.af`, `XSRF-TOKEN` all Secure (the
+    first two HttpOnly). (5) `GET /api/shop`: `adminPasswordChanged` false, password change
+    204, then true.
+  - Browser check (maintainer, 2026-11-25): signed in at `https://p1c-b.shops.localhost/admin`
+    with the generated password read in their own terminal; all three cookies Secure.
+  - Cleanup through the operator: both Shops, DiscordChannels and Wallets deleted, namespace
+    `p1c-probe` deleted; `shops` empty; Discord shows no `p1b-*`, `p1c-*` or `np-check`
+    channels, only `platform-alerts`.
 
 **Checkpoint Phase 1**: D-1 and R-1 closed; platform deployed. ShopHub work may start.
 
@@ -181,38 +264,59 @@ the operator).
 
 ## Phase 2: ShopHub Setup
 
-- [ ] T011 Scaffold `shophub/` per contracts/delivery.md: `global.json`, `ShopHub.slnx`,
+- [X] T011 Scaffold `shophub/` per contracts/delivery.md: `global.json`, `ShopHub.slnx`,
   `src/ShopHub.Api` (Program, `SecurityHeaders.cs`, `ErrorHandling.cs`, `/healthz`, SPA fallback),
   `src/ShopHub.Web` (Angular 22, router, HttpClient), `tests/ShopHub.Api.Tests` (xUnit v3,
   Microsoft.Testing.Platform), `Dockerfile` (node → sdk → chiseled aspnet, non-root, 8080),
   `.gitignore`, `.dockerignore`.
-- [ ] T012 CI in `shophub/.github/workflows/ci.yaml` (mirrors shop: `lint`, `test`, `release`
+- [X] T012 CI in `shophub/.github/workflows/ci.yaml` (mirrors shop: `lint`, `test`, `release`
   with strict SemVer, tag-on-main and existing-version guards, SHA-pinned actions,
   `permissions: {}`); first PR; **ask before** setting branch protection (required `lint` +
   `test`, strict, linear, squash only, delete branch on merge).
+
+**Progress Phase 2 (2026-11-25)**:
+- T011–T012: shophub PR #1 (branch `004-scaffold`). Scaffold, Dockerfile (port 8080, non-root
+  uid 1654, smoke-tested) and CI copied from the shop repo.
+- Ported from shop 0.2.0 with their tests and adapted to many accounts (maintainer's request):
+  trusted-proxy resolver and middleware; lockout per (account, address) plus a per-account
+  ceiling (maintainer's choice) with the burst fix, PostgreSQL store `signin_lockouts` and the
+  schema migrator; session check against per-session rows (`ISessionStore`), password change
+  ending the owner's other sessions; cookie policy; registration rate limit. FR-002, FR-003,
+  R7, data-model.md and panel-api.md (`POST /api/password`) amended. 60 .NET tests (PostgreSQL
+  via Testcontainers), `ng lint`/`ng test`/`ng build` pass.
+- Branch protection for `shophub-spec` set as in shop (maintainer-approved): required `lint` +
+  `test`, strict, admins included, linear history, squash only, delete branch on merge. PR #1
+  merged (`9f0e3c6`).
+
+**Progress Phase 3 (2026-11-25)**:
+- T013 done: shophub PR #2 (branch `004-foundation`). Settings (all five, problems named
+  without values), `DatabaseInitializer` (from shop's `StoreInitializer`: migrations before the
+  port opens, backoff capped at 10 s, redacted logs), `002_panel.sql` with the data-model rules
+  as constraints, `/healthz` checks the database. 89 tests passing (Testcontainers PostgreSQL),
+  including three replicas migrating at once and no secrets in logs when the database is
+  unreachable.
 
 ---
 
 ## Phase 3: Foundation (blocks US2–US5)
 
-- [ ] T013 Settings, startup and schema in `shophub/src/ShopHub.Api/`:
+- [X] T013 Settings, startup and schema in `shophub/src/ShopHub.Api/`:
   - `Settings.cs`: `DATABASE_URL`, `SHOPS_NAMESPACE`, `SHOP_DOMAIN`, `TRUSTED_PROXY_HOST`,
     `MAX_SHOPS_PER_OWNER` (contracts/delivery.md);
-  - `ForwardedHeaders.cs`: trusted proxies limited to Traefik (research R7): the IPs of
+  - `ForwardedHeaders.cs` (ported in Phase 2; T013 only wires it with the other settings): trusted proxies limited to Traefik (research R7): the IPs of
     `TRUSTED_PROXY_HOST` resolved by DNS every 30 s; `X-Forwarded-For`/`-Proto` honoured only
     when the TCP peer is one of them, `ForwardLimit = 1`; unset or lookup failure means trust
     nobody (fail closed); unit tests with a fake resolver (trusted peer, other pod-network peer,
     failed lookup, address list change);
   - `Storage/Scripts/001_initial.sql` with the tables of data-model.md: `owners` (`owners.id`,
     `owners.email`, `owners.email_normalized` UNIQUE, `owners.password_hash`), `owner_sessions`
-    (`owner_sessions.expires_at`), `signin_failures` (`signin_failures.email_normalized`,
-    `signin_failures.address`, `signin_failures.at`; index on `(email_normalized, address, at)`:
-    the lockout key is (account, client address), never the address alone), `shops` (`shops.id`, `shops.owner_id`,
+    (`owner_sessions.expires_at`), `shops` (`shops.id`, `shops.owner_id`,
     `shops.display_name`, `shops.display_name_key` with UNIQUE `(owner_id, display_name_key)`,
     `shops.availability`, `shops.database`, `shops.wallet_address`, `shops.wallet_generation`,
-    `shops.state`, `shops.updated_at`), `data_protection_keys`; migration runner as in shop;
+    `shops.state`, `shops.updated_at`), `data_protection_keys`, as script `002_panel.sql`
+    (`001_signin_lockouts.sql` and the migration runner came with Phase 2);
   - Testcontainers PostgreSQL fixture in `tests/ShopHub.Api.Tests/Integration/Postgres/`.
-- [ ] T014 Kubernetes seam in `shophub/src/ShopHub.Api/Shops/`:
+- [X] T014 Kubernetes seam in `shophub/src/ShopHub.Api/Shops/`:
   - `IKubeGateway` + `KubeGateway` (official `KubernetesClient`): server-side apply with field
     manager `shophub`, delete, read Shop status, read Secret `<id>-admin` key `password`;
   - Testcontainers k3s fixture in `tests/ShopHub.Api.Tests/Integration/K3s/` loading the CRDs from
@@ -220,6 +324,27 @@ the operator).
   - tests: apply/delete/status round trip; CRD validation errors surface; the ServiceAccount is
     refused Secrets outside `shops`, kinds it doesn't own, and creating or changing a Secret or a
     Deployment inside `shops` (SC-007 for ShopHub).
+
+- T014 done: shophub PR #3 (branch `004-kube-gateway`). `KubeGateway` (KubernetesClient 21.0.8):
+  server-side apply with field manager `shophub`, Shop status, `<id>-admin` password, deletes one
+  object at a time by names derived from the record (Shop, DiscordChannel, Wallets
+  `-w1`…`-w<generation>`), never by label selector (maintainer's rule). k3s v1.36.1 via
+  Testcontainers with the CRDs vendored from chart `shop-operator` 0.4.0
+  (`tests/.../K3s/Manifests/`) and the delivery.md Role on a test ServiceAccount:
+  SubjectAccessReview for every grant and refusal, real 403s, and the gateway's requests
+  recorded (no selectors, no collection deletes, only Secret read `GET …/secrets/<id>-admin`).
+  Finding: RBAC can't restrict `get secrets` to `<id>-admin` (`resourceNames` needs fixed names),
+  so a known name like `<id>-db-app` is readable by the ServiceAccount; the gateway is the
+  restriction, recorded in contracts/delivery.md. 127 tests passing (38 on k3s).
+- The chart task must render the same Role as `tests/.../K3s/Manifests/shophub-rbac.yaml`;
+  enforced by the T023 CI drift check.
+- The Secret-read limit (any known Secret name in `shops` is readable; the gateway reads only
+  `<id>-admin`) is accepted as documented by the maintainer (2026-11-25); no operator change.
+- T015 done: shophub PR #4 (branch `004-accounts`). Accounts API, PostgreSQL stores for owners,
+  sessions and Data-Protection keys, the Phase 2 lockout and rate limit wired in. No enumeration
+  as specified; the counting hasher found that a lazily built dummy hash made the first
+  unknown-email sign-in do an extra PBKDF2 run, fixed by building it when the service is created.
+  147 tests passing.
 
 **Checkpoint**: app starts against PostgreSQL; gateway proven against a real API server.
 
@@ -231,21 +356,51 @@ the operator).
 
 **Independent test**: quickstart Scenario 5.
 
-- [ ] T015 [US2] Accounts backend in `shophub/src/ShopHub.Api/{Accounts,Auth,Endpoints/Accounts.cs}`:
-  - `GET /api/session`, `POST /api/register`, `/api/signin`, `/api/signout`;
+- [X] T015 [US2] Accounts backend in `shophub/src/ShopHub.Api/{Accounts,Auth,Endpoints/Accounts.cs}`:
+  - `GET /api/session`, `POST /api/register`, `/api/signin`, `/api/signout`, `/api/password`;
   - validation per data-model.md `owners` (email, password length); `PasswordHasher` into
-    `owners.password_hash`; duplicate by `owners.email_normalized` → 409;
-  - sessions per `owner_sessions` (8 h, row checked on every request, deleted on sign-out);
-  - lockout keyed by (account, client address): `signin_failures` `(email_normalized, address)`,
-    429 + `Retry-After`; rate limits stay per client address: registration 10/hour;
+    `owners.password_hash`; **no account enumeration** (FR-001, panel-api.md): register answers
+    202 with no body and no cookie for both a new and an existing `owners.email_normalized`
+    (existing account untouched; one hash computed either way); sign-in with an unknown email
+    gives the wrong-password 401 and verifies against a fixed dummy hash;
+  - sessions per `owner_sessions` (8 h, row checked on every request, deleted on sign-out; a
+    password change deletes the owner's other rows): a PostgreSQL `ISessionStore` for the Phase 2
+    `Auth/Sessions.cs`;
+  - lockout: wire the Phase 2 `SignInLockout` + `PostgresLockoutStore` (data-model.md
+    `signin_lockouts`, per (account, address) plus the per-account ceiling), 429 +
+    `Retry-After`; rate limits stay per client address: registration 10/hour (Phase 2
+    `RateLimits.Registration`);
   - session cookie `Secure`, `HttpOnly`, `SameSite=Strict` (FR-004); XSRF cookie/header;
     Data-Protection keys in `data_protection_keys`;
   - tests (unit + Postgres + `WebApplicationFactory`): FR-001–FR-004 including the three cookie
-    flags, replayed cookie after sign-out → 401, lockout from one address does not block
-    the same account from another, and **5 failures for account X from address A don't lock
-    account Y from address A**.
-- [ ] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
-  sign-in pages, XSRF interceptor, route guard, sign-out; `ng test`.
+    flags, replayed cookie after sign-out → 401, **after a password change a stolen cookie of
+    another session → 401 while the current session stays**, lockout from one address does not
+    block the same account from another, and **5 failures for account X from address A don't lock
+    account Y from address A**; 50 across addresses lock X but not Y; **no enumeration**: an
+    existing-email registration and a new one return identical status, headers (no
+    `Set-Cookie` session) and body, and an unknown-email sign-in and a wrong-password sign-in
+    return identical status and body. Timing, robust against CI noise: the assertion is on hash
+    cost, not wall clock. A counting `IPasswordHasher` wrapper registered in the test host shows
+    every path does exactly one PBKDF2 operation (hash or verify, same iteration count): new and
+    existing registration, wrong password and unknown email. Wall clock is only a coarse guard:
+    the median over 20 requests each is within a factor of 5.
+- [X] T016 [P] [US2] Angular auth in `shophub/src/ShopHub.Web/src/app/auth/`: register and
+  sign-in pages (after a 202 registration the page signs in with the same credentials; a 401
+  there shows "If you already have an account, sign in with its password"), XSRF interceptor,
+  route guard, sign-out; `ng test`. The register page's failure wording reveals no more than the
+  API: never "email taken" or "account exists"; tested (exact text, forbidden words, a new and a
+  taken email give the same page).
+
+Progress (Phase 4):
+
+- T015 merged: shophub PR #4 (718c554).
+- T016 merged: shophub PR #5 (d1bad2b). Register, sign-in, sign-out, owner and guest
+  guards, own XSRF interceptor (fetches a missing token, replaces a stale one once on the API's
+  XSRF 400; other `/api` 401s go to sign-in). 29 `ng test` tests; a mutation to "This email is
+  already taken." fails them. `compose.yaml` runs PostgreSQL plus the image at
+  http://localhost:8080 for a browser click-through (passwordless trust database, no published
+  DB port). Smoke test against the real API in compose matched the contract. Browser
+  click-through by the maintainer (2026-11-25, `docker compose` at http://localhost:8080): OK.
 
 **Checkpoint**: Scenario 5 passes locally.
 
@@ -257,7 +412,7 @@ the operator).
 
 **Independent test**: quickstart Scenarios 6 and 7.
 
-- [ ] T017 [US3] Shop records in `shophub/src/ShopHub.Api/Shops/ShopRecords.cs`:
+- [X] T017 [US3] Shop records in `shophub/src/ShopHub.Api/Shops/ShopRecords.cs`:
   - id generation per data-model.md `shops.id`; name rules per `shops.display_name` and
     `shops.display_name_key`; `shops.availability`, `shops.database` enums; `shops.wallet_address`
     format and EIP-55 checksum;
@@ -265,7 +420,14 @@ the operator).
     every owner-facing query filters on `owner_id`;
   - idempotent create (double submit → one shop, SC-010);
   - unit + Postgres tests.
-- [ ] T018 [US3] Reconciler in `shophub/src/ShopHub.Api/Shops/{Reconciler,StateMapping,ReasonTexts}.cs`:
+
+  Progress: done in shophub PR #6 (branch `004-shop-records`). Identical repeat returns the
+  existing shop, other settings with the same name are a duplicate, repeat check before the limit;
+  wallet stored in EIP-55 form; names refuse control characters. Keccak-256 in-house (.NET SHA3 has
+  the wrong padding), cross-checked against platform SHA3-256. 210 tests; the two concurrency tests
+  (12 creates from 3 replicas) fail without the owner row lock. The example id `s7k2m9qxa1` in
+  panel-api.md and R9 was not valid base32 and is now `s7k2m4qxab`.
+- [X] T018 [US3] Reconciler in `shophub/src/ShopHub.Api/Shops/{Reconciler,StateMapping,ReasonTexts}.cs`:
   - hosted service, every 30 s plus a trigger after each write, PostgreSQL advisory lock;
   - applies DiscordChannel `<id>`, Wallet `<id>-w<generation>` (from `shops.wallet_generation`)
     and Shop `<id>` with the labels and specs of data-model.md "Cluster resources";
@@ -277,14 +439,38 @@ the operator).
   - k3s tests: create; drift repair; interrupted create at each step (after the DiscordChannel,
     after the Wallet, after the Shop) finishes with no orphan (SC-010); repeated apply is a
     no-op; a hand-made Shop carrying ShopHub labels but no record survives every pass.
-- [ ] T019 [US3] Shop endpoints in `shophub/src/ShopHub.Api/Endpoints/Shops.cs`:
+
+  Progress: done in shophub PR #7 (branch `004-reconciler`).
+  - Transaction-level advisory lock; the gateway is resolved only when there are records.
+  - `Deleting` records and old Wallet generations are left to T022 and T021.
+  - Research R8 corrected: no list-and-prune by label.
+  - 244 tests. Mutations caught: with no lock, the lock tests fail; with a stop at the first
+    failing shop, the isolation and interruption tests fail.
+- [X] T019 [US3] Shop endpoints in `shophub/src/ShopHub.Api/Endpoints/Shops.cs`:
   - `GET /api/shops`, `POST /api/shops`, `GET /api/shops/{id}`,
     `POST /api/shops/{id}/admin-password` (status read over the in-cluster Service first; 409
     `changed` / `notReady`; `Cache-Control: no-store`; password never logged);
   - 503 when the database or Kubernetes API is down;
   - API tests plus `tests/ShopHub.Api.Tests/Integration/Isolation/` suite: owner B gets 404 for
     every endpoint on owner A's shop, and A's shops are absent from B's list (FR-018, SC-004).
-- [ ] T020 [P] [US3] Angular shops in `shophub/src/ShopHub.Web/src/app/shops/`:
+
+  Progress: done in shophub PR #8 (branch `004-shop-api`).
+  - The endpoints are in `Shops/ShopEndpoints.cs`, next to `Accounts/AccountEndpoints.cs`, not in
+    `Endpoints/Shops.cs`.
+  - A repeated create answers 200 with the existing shop.
+  - 503 now also covers an unreachable Kubernetes API.
+  - The isolation matrix is data-driven; T021 and T022 add PATCH and DELETE rows.
+  - 270 tests. Dropping the owner filter fails the isolation suite.
+  - Before merge: `Cache-Control: no-store` and `Pragma: no-cache` are now set before the
+    ownership check, so every admin-password answer carries them (200, 404, 409, 503). Tested for
+    each outcome; removing the Pragma line fails the test.
+
+  Before merging T018 (PR #7), the reconciler lock was confirmed transaction-scoped
+  (`pg_try_advisory_xact_lock`, no session lock), so it can't leak through the connection pool.
+  Tests added: a pass cancelled mid-apply and a pass whose connection was killed, on a
+  one-connection pool, are followed by a pass that runs. A session-level lock without unlock fails
+  the cancel case.
+- [X] T020 [P] [US3] Angular shops in `shophub/src/ShopHub.Web/src/app/shops/`:
   - list with states and reasons, refreshed at least every 10 s while any shop is not ready
     (FR-008);
   - create form with field errors and the limit message;
@@ -293,7 +479,17 @@ the operator).
     and the "password was changed" message;
   - `ng test` covering the refresh interval, the `rel` attribute and the hint.
 
+  Progress: done in shophub PR #9 (branch `004-shops-web`).
+  - The list replaces the placeholder start page and reloads every 5 s while a shop isn't ready
+    (an injection token, at most 10 s).
+  - Links go only to ready shops with an address.
+  - The admin password is fetched only on click, with a link to the shop's `/admin/login`.
+  - 45 `ng test` tests. Removing `rel`, or polling when all shops are ready, fails them.
+
 **Checkpoint (MVP)**: register → create → open works locally against k3s/fake gateway.
+Status: covered piecewise by tests: the API with the fake gateway, the reconciler on k3s, the
+pages with `ng test`. Not yet run end to end in a browser. The compose setup has no cluster, so
+shop reads answer 503 there. The first real run is with the chart on Docker Desktop (T023–T025).
 
 ---
 
@@ -301,12 +497,59 @@ the operator).
 
 **Independent test**: quickstart Scenario 8 steps 1–2.
 
-- [ ] T021 [US4] `PATCH /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular edit
+- [X] T021 [US4] `PATCH /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular edit
   (`src/app/shops/edit`):
   - availability change; wallet change increments `shops.wallet_generation` (data-model.md), the
     reconciler applies the new Wallet, repoints the Shop, then deletes the old Wallet (FR-009);
   - 400 for `name`/`database`, 409 while deleting;
   - k3s test for the wallet switch order; API and isolation tests for PATCH.
+
+  Progress:
+  - **shophub PR #11** (branch `004-t021-change-config`).
+  - **PATCH:**
+    - only `availability` and `walletAddress`; `name`, `database` (even unchanged) and any
+      other field give 400 by field; `{}` is 400;
+    - repeating the current values answers 200 and writes nothing;
+    - 409 `reason: "deleting"`;
+    - another owner's shop gives the same 404 as an unknown id.
+  - **Store:** one transaction under `FOR UPDATE` on the shop row. A new address (compared in
+    EIP-55 form) takes the next generation.
+  - **Wallet cleanup:**
+    - migration `003_wallet_cleanup.sql` adds `shops.oldest_wallet_generation` (data-model.md);
+    - after the apply (new Wallet, Shop repointed), the reconciler deletes generations `oldest`
+      … `current-1` by name, then raises the column;
+    - each old Wallet is deleted once; a failed delete is retried on the next pass.
+  - **Panel:**
+    - "Change settings" sits in each shop row of the list (`src/app/shops/shop-edit.ts`, flat
+      like T020's files rather than an `edit/` folder), hidden while a shop is being deleted;
+    - name and database are shown read-only;
+    - only changed fields are sent;
+    - the wallet hint says that orders after the change go to the new address.
+  - **Tests:**
+    - unit (change validation);
+    - store: generations, row lock (6 identical concurrent changes give one generation),
+      owner, deleting;
+    - reconciler passes: order, several changes, failed delete retried;
+    - k3s: requests are exactly PATCH channel, PATCH `-w2`, PATCH Shop, DELETE `-w1`, and a
+      later pass deletes nothing;
+    - API, and PATCH added to the isolation matrix;
+    - Angular: edit form and list.
+  - **Local runs:** all .NET tests (k3s included) and 53 Angular tests pass; `dotnet format`
+    and `ng lint` are clean.
+  - **Mutation checks:**
+    - without `FOR UPDATE` the lock test fails 3 of 3 runs;
+    - deleting old Wallets before the apply fails 4 tests (3 pass, 1 k3s).
+  - Merged as shophub `39660a5` (approved, 2026-11-26). Live check (quickstart Scenario 8 steps
+    1–2) with the release after T022.
+  - **Live check on 0.2.0 (2026-11-26), shop `suuqyuaaz2`:**
+    - Step 1 (availability) passed: High, 3/3 copies within about 2 min (details under T022).
+    - Step 2 (wallet change) was not observed live. The shop was deleted before a wallet change
+      was confirmed. The shop-operator and ShopHub logs since the shop's creation (16:09 UTC)
+      have no line for `suuqyuaaz2-w2` or `-w1`: neither logs Wallet creates or deletes, so they
+      can't show the order either way. Read-only checks only; no new shop (maintainer).
+    - **Deviation:** the live wallet-swap check is deferred to spec 005 (plan.md D-2). The order
+      new Wallet → Shop repointed → old Wallet deleted is covered by the k3s test
+      `ReconcilerTests` (wallet switch) and the store tests for generations.
 
 ---
 
@@ -314,39 +557,362 @@ the operator).
 
 **Independent test**: quickstart Scenario 8 steps 3–4.
 
-- [ ] T022 [US5] `DELETE /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular delete
+- [X] T022 [US5] `DELETE /api/shops/{id}` in `Endpoints/Shops.cs` + reconciler + Angular delete
   dialog (`src/app/shops/delete`):
   - `confirmName` must match (trimmed, exact case) else 400; `shops.state` → `Deleting` (202);
   - reconciler deletes Shop, Wallet and DiscordChannel by name from the record (never by label
     selector), removes the row once all are gone; repeat-safe;
   - k3s, API and isolation tests for DELETE.
+  - **Live check (maintainer, 2026-11-25):** the test shop the maintainer creates in the browser
+    after the T024 rollout stays until T022 ships; no manual database edits and no hand deletes
+    meanwhile. Deleting that shop through the panel, then confirming its Shop, every Wallet
+    generation and its DiscordChannel are gone from namespace `shops`, the Discord channel is
+    gone, and the record has left the list, is T022's live check.
+
+  Progress:
+  - **shophub PR #12** (branch `004-t022-delete-shop`).
+  - **DELETE:**
+    - ownership first: another owner's shop is the plain 404, even with the right name;
+    - then the name, trimmed and exact case: a mismatch or missing body is 400 on
+      `confirmName`;
+    - then 202 "being deleted"; a repeat is 202 again.
+  - **Bodies:** PATCH and DELETE now read their JSON body themselves. A request without a body
+    used to get the framework's 404 from content-type matching; it now gets the contract's 400.
+    The PATCH case was added to T021's tests.
+  - **Reconciler:**
+    - each pass deletes Shop, DiscordChannel and Wallets `-w1 … -w<generation>` by name, then
+      removes the row once none exists;
+    - while finalizers hold objects it passes every 5 s (SC-003); a failed delete is retried at
+      30 s.
+  - The row keeps counting towards the limit until it is gone.
+  - **Panel:** "Delete shop" in each row, except while the shop is being deleted. It shows a
+    warning, asks for the name, and enables the button only on an exact match
+    (`src/app/shops/shop-delete.ts`).
+  - **Tests:** store, reconciler passes, k3s (named DELETEs only; a finalizer keeps the record),
+    API, isolation with DELETE, Angular.
+  - **Local runs:** 314 .NET tests (k3s included) and 58 Angular tests pass; `dotnet format`
+    and `ng lint` are clean.
+  - **Mutation checks:**
+    - removing the row while objects remain fails 3 tests;
+    - dropping the owner filter fails the isolation DELETE row and the store test.
+  - Release after T022 (maintainer, 2026-11-26): one release covers both live checks, T021
+    (Scenario 8 steps 1–2) and T022 (the browser test shop).
+  - shophub PR #12 merged as `26ac014` (approved, 2026-11-26).
+  - **Slow-delete reason** (maintainer check, 2026-11-26): the panel showed no reason for a shop
+    stuck in "being deleted". Now, 2 minutes after the delete (SC-003), the list and GET read
+    the shop's objects by name and say what still holds it: the shop and its database, the
+    notification channel (e.g. a finalizer that can't finish) or the wallet record. Object names
+    are never shown; the Angular list already shows `reason` for every state. Committed on
+    shophub branch `004-t022-stuck-delete-reason` (`9f178d8`), not pushed yet. Unit and API
+    tests added; all 321 .NET tests pass and `dotnet format` is clean. shophub PR #13 merged as
+    `04abe2a` (approved, 2026-11-26).
+  - Released in shophub `v0.2.0` (see T024); live check after the rollout.
+  - The original browser test shop was never in the ShopHub database and is gone from the
+    cluster (T024). By the maintainer's decision (2026-11-26) T022's live check deletes the new
+    shop from T024's fresh browser run instead, and T021's change check uses that shop too.
+  - **Live check on 0.2.0 (2026-11-26), shop `suuqyuaaz2` "Live Check 0.2.0":**
+    - T021 availability: switched to High in the panel (record saved 20:34:24 UTC). Shop `high`
+      and Ready, Deployment 3/3; the two existing pods kept running, the third started within
+      about 2 min (SC-002). The shop's database pod was untouched.
+    - T022 delete through the panel, confirmed read-only at 20:39:20 UTC: no shop record left in
+      the ShopHub database; no Shop, Wallet or DiscordChannel in any namespace (only the
+      platform's `platform-alerts` remains); nothing named `suuqyuaaz2` left in `shops` (pods,
+      Deployment, Service, Ingress, NetworkPolicy, Secrets, CNPG cluster, Redis);
+      `https://suuqyuaaz2.shops.localhost` answers 404.
+    - Maintainer confirmed in the panel and Discord (2026-11-26): the shop showed "being
+      deleted" and then left the list; the mistyped name kept Delete disabled; `#suuqyuaaz2`
+      disappeared from Discord. The minutes until it left the list were not filled in
+      (`<X>` in the confirmation). **Replaced by the T025 measurement:** `Acme`, deleted
+      through the panel on 0.2.0, went from the delete request (22:26:56.978 UTC, its
+      `updated_at`) to no record by 22:27:02.430, so **≤ 5.5 s** (SC-003 < 2 min), with all
+      its objects, database and host gone.
 
 ---
 
 ## Phase 8: Release (FR-027, FR-028, FR-029)
 
-- [ ] T023 Chart `helm-charts/charts/shophub` 0.2.0 per contracts/delivery.md (deployment,
+- [X] T023 Chart `helm-charts/charts/shophub` 0.2.0 per contracts/delivery.md (deployment,
   service, ingress, serviceaccount, `rbac.yaml` Role + RoleBinding in `shopsNamespace` only,
   `database.yaml` CNPG `shophub-db`, `networkpolicy.yaml` (ShopHub app pods accept TCP 8080 only
   from the Traefik pods in namespace `traefik`; the database pods stay reachable from the app),
   value `trustedProxyHost`, hpa disabled, NOTES, helpers); helm-charts PR, chart `install` job
   green, **ask before merge**.
-- [ ] T024 Release and roll out ShopHub:
+  - **Role drift check (maintainer, 2026-11-25):** CI renders the chart's `rbac.yaml` (`helm
+    template` with default values) and compares the Role and RoleBinding with
+    `shophub/tests/ShopHub.Api.Tests/Integration/K3s/Manifests/shophub-rbac.yaml`, the manifest
+    the k3s RBAC tests assert. Rules, subjects and namespace are compared after normalising (YAML to
+    JSON, rule lists sorted; labels and annotations ignored). Any difference fails the job, so the
+    deployed RBAC can't drift from the tested one.
+
+  Progress (reordered by the maintainer 2026-11-25: T023/T024 before T021/T022):
+  - **helm-charts PR #9** (branch `004-shophub-chart`):
+    - chart 0.2.0 with appVersion 0.1.0;
+    - the 5.3 file list is kept: the new objects render from the allowed templates
+      (delivery.md);
+    - `rbac-drift` job: script and bats tests, checks out shophub-spec main's manifest,
+      `publish` waits for it;
+    - `install` job: CNPG 0.29.2 first, then ShopHub rollout, NetworkPolicy, no
+      ClusterRoleBinding, and `can-i` for every granted and refused permission.
+  - Drift check run locally: passes on the real manifest; an extra Secret `list` fails with a
+    diff; reordering and labels pass.
+  - All PR checks green except `install`, which waits for the `shophub:0.1.0` image (T024).
+  - kube-state change committed locally (branch `004-shophub-0.2.0`); its PR waits for the
+    published chart.
+  - Found on the way: the shophub push run for `b37c11e` failed once in
+    `StartupTests.MissingDatabaseUrlStopsTheStartAndNamesIt`. The cause is a
+    WebApplicationFactory race (`ObjectDisposedException` instead of `SettingsException`). A
+    test-only fix, shophub PR #10 (merged as `db327b0`, approved by the maintainer).
+  - The 5.3 tree was confirmed exact on request:
+    - `Chart.yaml`, `values.yaml`, and `charts/` (tracked by `.gitkeep`, excluded from the
+      package by `.helmignore`);
+    - `templates/` holds only the seven files;
+    - `hpa.yaml` renders nothing by default and an HPA with `autoscaling.enabled=true`.
+
+    Nothing was missing.
+  - After the `v0.1.0` release (T024) the `install` job was re-run and passed: ShopHub rolled out
+    against CNPG in kind, the NetworkPolicy exists, and every `can-i` assertion held.
+  - helm-charts PR #9 merged as `7ac6e3c` (approved). `publish` and `verify-public` are green,
+    and chart `shophub` 0.2.0 is anonymously pullable.
+- [X] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
   - publish chart 0.2.0 (appVersion 0.1.0);
   - kube-state PR `clusters/local/shophub/{helm.yaml,values.yaml}` → **ask before merge** →
     `./bring-up.sh`; quickstart Scenario 4; record the tag-to-pullable-image time (SC-009).
-- [ ] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
+
+  Progress:
+  - shophub `v0.1.0` tagged on `db327b0` (approved).
+  - Tag pushed 15:58:51 UTC; the `release` job pushed `ghcr.io/nikola031ue/shophub:0.1.0` by
+    16:01:31, so **2 min 40 s from tag to pullable image** (SC-009 < 15 min).
+  - The package was already Public: an anonymous manifest fetch from ghcr.io gives HTTP 200, as
+    shop-operator's did, inherited from the public repository. No visibility change was needed
+    or made.
+  - GitHub returned intermittent 500/502 errors on merge, tag push and re-run (about
+    15:40–16:05 UTC). Each was retried and verified; nothing was half-applied.
+  - **Release 0.2.0 (T021 + T022, approved 2026-11-26):** shophub `v0.2.0` tagged on `04abe2a`
+    (annotated; only the tag pushed). Tag pushed 07:19:48 UTC; the `release` job pushed
+    `ghcr.io/nikola031ue/shophub:0.2.0` by 07:22:30, so **2 min 42 s from tag to pullable image**
+    (SC-009 < 15 min). An anonymous manifest fetch gives HTTP 200; no visibility change.
+  - helm-charts PR #10 (branch `shophub-0.2.1`): chart 0.2.1, appVersion 0.2.0, no template
+    changes (the Role already grants `get` and `delete`).
+  - helm-charts PR #10 merged as `53afc41` (approved); `publish` and `verify-public` green.
+  - kube-state PR #13 (only `helm.yaml` chart 0.2.1 and `values.yaml` `image.tag` 0.2.0), all
+    checks green incl. `e2e`, merged as `194126b` (approved). `./bring-up.sh`: only `shophub`
+    upgraded, 5 unchanged, 49 s. 2/2 pods on `shophub:0.2.0`, 0 restarts; migration 3 applied
+    10:34:24 UTC; panel 200, `/healthz` ok.
+  - **Found after the 0.2.0 rollout (2026-11-26), before any live check:** the browser test shop
+    is not there. `shops` holds no Shop, Wallet or DiscordChannel, and the ShopHub database
+    (CNPG `shophub-db`, created 2026-11-25 17:54 UTC) has 0 owners and 0 shops, and its table
+    statistics show no row was ever inserted into `owners` or `shops`. Read-only queries only;
+    nothing was changed. Waiting for the maintainer before the T021/T022 live checks.
+  - **T024 reopened (maintainer, 2026-11-26):** a fresh browser end-to-end on 0.2.0 (register,
+    create, Ready, Discord channel, open, shop admin sign-in) replaces the withdrawn one. The
+    T021 and T022 live checks use the shop created in this run, not the original test shop.
+  - **Fresh browser end-to-end OK on 0.2.0 (maintainer, 2026-11-26)**, shop "Live Check 0.2.0":
+    registered; created the shop; it became Ready; Discord channel `#suuqyuaaz2` appeared;
+    opened over HTTPS; signed in to the shop admin with the panel's password; added an item,
+    which shows on the storefront.
+  - Confirmed read-only: record `suuqyuaaz2` (`Active`, standard/standard, wallet generation 1,
+    created 16:09:01 UTC) is the only shop, and there is 1 owner; Shop `suuqyuaaz2` Ready at
+    `https://suuqyuaaz2.shops.localhost`, Wallet `suuqyuaaz2-w1` (registered) Ready,
+    DiscordChannel `suuqyuaaz2` Ready. This shop is the T021/T022 live-check shop.
+  - kube-state PR #12 (branch `004-shophub-0.2.0`): chart 0.2.0, image 0.1.0, host and namespaces.
+    All checks green, including `e2e`. Merged as `05791e7` (approved).
+  - `./bring-up.sh` on docker-desktop: only `shophub` upgraded (0.1.0 placeholder to chart
+    0.2.0), 5 releases unchanged, 71 s. Within a minute: 2/2 pods ready, CNPG `shophub-db`
+    healthy, Ingress `shophub.localhost`, NetworkPolicy, Role and RoleBinding in `shops`, no
+    ClusterRoleBinding.
+  - Checked: `https://shophub.localhost` 200 with a verified certificate, `/healthz` ok, plain
+    HTTP redirects to HTTPS, `/api/shops` without a session 401. `can-i` as the ServiceAccount:
+    create shops and get secrets in `shops` yes; list secrets, writes in `default`, secrets in
+    `shophub` no.
+  - **Browser end-to-end OK (maintainer, 2026-11-25), withdrawn 2026-11-26:** it left no trace
+    in the ShopHub database (see below), so it doesn't count. What was reported:
+    - registered and was signed in;
+    - created one shop, which became Ready, and its Discord channel appeared;
+    - opened the shop from the panel;
+    - signed in to the shop admin with the password from the panel, then changed it.
+
+    The test shop stays until T022, whose live check deletes it (see T022).
+- [X] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
   15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
   secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
+
+  Plan (2026-11-26; the cluster reset waits for the maintainer's OK):
+  - **A. Reset and bring-up (Scenario 4, FR-028, SC-009).** The maintainer resets the Docker
+    Desktop cluster. Hand-made Secrets: `shophub-tls` (mkcert, README "Local HTTPS") and
+    `shop-operator-discord`, which the maintainer creates without the token appearing in chat.
+    Time `./bring-up.sh` from start to `https://shophub.localhost` answering 200 (< 15 min, no
+    other manual step). Then the Scenario 4 checks: ServiceAccount, `can-i` per namespace,
+    throwaway pod in `default` blocked by the NetworkPolicy, forged `X-Forwarded-For` recorded
+    with the real address in `signin_lockouts` (read-only query).
+  - **B. Accounts (Scenario 5).** Owners A and B via the API: duplicate registration 202,
+    unknown email and wrong password give the same 401, lockout 429 from one throwaway pod and
+    success from a second, replayed session cookie 401.
+  - **C. Create and open (Scenario 6).** The maintainer registers owner A in the browser and
+    creates `Acme` (standard, PostgreSQL) and `Light` (standard, Redis); time from registration
+    to the first storefront open (SC-001 < 5 min) and to Ready (SC-002). Shop admin sign-in and
+    password change in the browser (panel then says "changed"). Invalid inputs and the 6th shop
+    via the API: field errors and the limit message, nothing created.
+  - **D. Isolation (Scenario 7).** Owner B calls GET, PATCH, DELETE and admin-password on
+    `Acme`'s id: 404, same as an unknown id; B's list is empty.
+  - **E. Change, drift and delete (Scenario 8), measured:**
+    1. `Acme` to high: 3 copies within 2 min, items unchanged.
+    2. Drift: delete Shop `<acme>` by name by hand (quickstart's recorded hand change); ShopHub
+       puts it back within 60 s.
+    3. Wallet swap on `Acme`: an order before the change, the address changed in the panel, an
+       order after. Confirmed read-only: Wallet `<acme>-w2` Ready and the Shop on it, `-w1`
+       gone, old order keeps the old address, new order the new one. Only then may the
+       maintainer delete `Acme`.
+    4. Delete with a mistyped name: button disabled in the panel, 400 from the API.
+    5. `Light`, then `Acme`, deleted in the panel. Each measured from the delete request
+       (`updated_at` set by the delete, polled every second) until the record is gone (SC-003
+       < 2 min), plus all objects gone and the host no longer serving.
+    If 3 and 5 pass for `Acme`: close plan.md D-2 and replace T022's missing time.
+  - **F. Secret sweep (Scenario 9, SC-008).** Owner and shop admin passwords, ShopHub DB password
+    and URI, Redis password, Discord token, TLS key: values read only inside a script that prints
+    match counts, never the values. Expected 0 in `git grep` over every commit of all
+    repositories, ShopHub/shop/operator logs, the three kinds' YAML and API responses (except the
+    admin-password response).
+  - **G. Clean up:** remaining test shops deleted through the panel; throwaway pods deleted by
+    exact name. Record every timing here.
+
+  Run (2026-11-26):
+  - **A. Reset and bring-up — passed.**
+    - The first reset didn't take (node and namespaces still 3 days old); after the second,
+      the node and the five built-in namespaces were 2 min old.
+    - `shophub-tls` recreated with mkcert, key files removed. The maintainer created namespace
+      `shop-operator-system` and Secret `shop-operator-discord` (token length checked: 74,
+      never shown). `bring-up.sh` uses `--create-namespace`, so a namespace made first is fine.
+    - `./bring-up.sh` from 21:39:04 UTC: 6 installed, exit 0, panel 200 at 21:41:49, so
+      **2 min 45 s** (SC-009 < 15 min); no other manual step.
+    - Pods run as ServiceAccount `shophub` on `shophub:0.2.0`. `can-i` in `shops`: the three
+      kinds (get, list, watch, create, patch, delete) and `secrets` get only; nothing in
+      `default`, `shophub`, `shop-operator-system`, `traefik`, `kube-system`; no
+      ClusterRoleBinding. `platform-alerts` DiscordChannel Ready (the maintainer had removed
+      the old Discord channel by hand).
+    - Throwaway pod `t025-np` in `default`: `http://shophub.shophub.svc` timed out
+      (NetworkPolicy). A sign-in through Traefik with `X-Forwarded-For: 203.0.113.77` was
+      recorded in `signin_lockouts` as `172.18.0.5`, the real client address.
+  - **B. Accounts — passed.** Duplicate registration in other letter case with another password:
+    202 both times; the duplicate's password gives 401; unknown email gives the identical 401
+    body. A copied session cookie works before sign-out and gets 401 after it. Lockout through
+    Traefik from throwaway pods: pod A 5 × 401 then the right password 429 (its pod IP locked);
+    pod B on another IP, right password 204. A first attempt sent the right password with a
+    stray carriage return (my script, 400); rerun as above. All throwaway pods removed.
+  - **C. Create and open — passed; SC-001 only bounded.**
+    - The maintainer's first reply was an unfilled template and nothing had reached ShopHub
+      (no owner, no shops); both port-443 listeners on the machine belong to Docker Desktop,
+      so there is no second ShopHub. The run was then done in the browser.
+    - Owner A registered 21:57:49 UTC (with the maintainer's own address, not
+      `a@example.test`). `Acme` (`seaks6hbki`, standard, PostgreSQL) created 22:01:22, Ready
+      22:01:59 (37 s); `Light` (`s7r5bvdgh2`, standard, Redis) created 22:01:39, Ready 22:02:02
+      (23 s) (SC-002). Wallets `-w1` and DiscordChannels Ready for both.
+    - Shop admin password changed (Acme's `admin.initial = false`, changed 22:03:43), which is
+      what the panel's "changed" state reads; one item added 22:03:56.
+    - **SC-001 derived, not measured:** no clock times were noted, Traefik has no access log and
+      the shop doesn't log requests. The storefront was first opened between Ready (22:01:59)
+      and the admin password change (22:03:43), so registration to first open was between
+      **4 min 10 s** (the Ready bound) and 5 min 54 s; 3 min 33 s of it was before the first
+      create.
+    - API as test owner B: empty name and 101 characters 400 `name`; bad checksum 400
+      `walletAddress`; `availability: medium` 400 `availability`; a duplicate in other letter
+      case 409 `name`; the 6th shop 409 with the limit message. Nothing was created by a refused
+      request. B's five `T025 Limit` shops were then deleted through the API (202 each); all
+      five records were gone 5.5 s after the last delete request (22:09:01.5 → 22:09:06.9), and
+      nothing of theirs was left in `shops`.
+  - **D. Isolation — passed.** Owner B on `Acme`'s id and on an unknown id: GET, PATCH, DELETE
+    and admin-password all give the identical 404 body; B's list holds only B's shops; `Acme`
+    unchanged.
+  - **E1. `Acme` to high — passed.** Saved in the panel 22:16:26.3 UTC; the third copy Ready
+    22:16:37, so **11 s** to 3/3 (SC-002); the two existing copies weren't restarted. Items (1)
+    and orders (1) unchanged. Before the wallet change, order `34JV98Z2TH` (22:09:51) was placed
+    through the storefront API; it carries `-w1`'s address `0xE3C0…A2Cf`.
+  - **E2. Drift — restored, but data lost (finding).** Done on `Light`, not `Acme`, by the
+    maintainer's decision: deleting `Acme`'s Shop would cascade to its database and lose the item
+    and order the wallet-swap check needs.
+    - Shop `s7r5bvdgh2` deleted by name 22:17:17.5 UTC (the quickstart's recorded hand change).
+      ShopHub recreated it at 22:17:27.6 (**10.1 s**, < 60 s), Ready at 22:17:49 (31.5 s).
+    - **Finding:** the operator removes a shop's data with its Shop, so drift recovery gives an
+      empty shop. Redis pod and volume are new (`pvc-034b…` → `pvc-77cc…`), Secret
+      `s7r5bvdgh2-admin` is new (a newly generated admin password), and the data-protection keys
+      are new; only the fixed schema marker matches. Compared by key fingerprints (sha256 of
+      the values inside the pod), never by printing values. The spec's edge case ("missing
+      resources are put back") holds for the resource, not for the shop's data.
+      Deferred to spec 005 as plan.md D-4.
+  - **E3. Wallet swap on `Acme` — passed (end state).**
+    - The maintainer changed the address in the panel (record saved 22:20:59.6 UTC). Read-only:
+      `wallet_generation = 2`, `oldest_wallet_generation = 2`; Wallet `seaks6hbki-w2`
+      (`0x7294…2285`, created 22:20:59) Ready; the Shop's `walletRef` is `seaks6hbki-w2`;
+      `seaks6hbki-w1` gone.
+    - The order in time (`-w2` Ready and the Shop on it before `-w1` was deleted) wasn't seen
+      live: the first look was the end state, and Wallet creates and deletes aren't logged
+      (D-3). It rests on the k3s wallet-switch test and on `oldest_wallet_generation`, which
+      moves only after the old Wallet's delete succeeded.
+    - Rollout: the Shop reported Ready at 22:21:22 while one old copy (old `WALLET_ADDRESS`)
+      still ran for a few seconds; then all 3 copies on `0x7294…2285`. Added to plan.md D-1.
+    - Orders: `34JV98Z2TH` (before, 22:09:51) keeps `0xE3C0…A2Cf`; `2DD822JZBV` (after,
+      22:24:34) carries `0x7294…2285`. A first "after" attempt got 409 (the first item's stock
+      was used up by the "before" order, nothing ordered); the maintainer added item "2" with
+      stock 5, which was ordered.
+  - **E5. Deletes, measured — passed.** A watcher polled both records every second. `Light`:
+    request 22:26:15.436 UTC (`updated_at`), record gone by 22:26:20.541, **≤ 5.1 s**. `Acme`:
+    request 22:26:56.978, gone by 22:27:02.430, **≤ 5.5 s** (SC-003 < 2 min). Then, read-only:
+    no Shop, Wallet or DiscordChannel left in any namespace (only `platform-alerts`), nothing
+    named after either shop in `shops` (pods, PVCs, Secrets, Ingress, NetworkPolicy, Redis, CNPG
+    cluster), no PVs; both hosts 404; ShopHub has 0 shops. E3 and E5 both passed for `Acme`, so
+    plan.md D-2 is closed and T022's missing time is replaced.
+  - **E4. Mistyped name — passed** (maintainer, panel): lower-case `light` kept Delete
+    disabled. Both shops showed "being deleted" and then left the list. The API 400 for a
+    mistyped name needs owner A's session (the maintainer's browser), so it rests on the API
+    tests. Discord: both shop channels gone from the server (maintainer, 2026-11-26); read-only,
+    no shop DiscordChannel is left in the cluster, only `platform-alerts`.
+  - **F. Secret sweep — 0 matches (SC-008), with gaps.** A script read 9 values in-process
+    and printed only names and counts: ShopHub DB password, URI and JDBC URI; the Discord token;
+    the TLS key (longest PEM body line); the three test owners' passwords; the
+    `platform-alerts` webhook URL. 0 matches in every commit (`git log --all -p`) and working
+    tree of all six repositories, in ShopHub, shop-operator and Traefik logs, in the three kinds'
+    YAML across all namespaces, and in API responses (session, list, panel page). Positive
+    controls: each source had content and contains a known non-secret string. **Gaps:** the
+    sweep ran after E5, so no shop existed. Shop logs were empty, and the shop admin passwords
+    and `Light`'s Redis password had gone with their Secrets. Owner A's password is the
+    maintainer's and wasn't swept.
+  - **G. Clean up.** No shops left (owners' shops deleted through the panel and, for test owner
+    B, through the API); throwaway pods `t025-np`, `t025-pod-a…` removed (`--rm` or by exact
+    name); test owner B signed out; local password files and cookie jars deleted. The three
+    owner accounts remain (there is no account delete).
+  - **Summary:** SC-009 2 min 45 s (bring-up), 2 min 42 s (tag to image); SC-002 Ready in
+    23–37 s, high in 11 s; SC-003 ≤ 5.1 s and ≤ 5.5 s (panel), 5.5 s (five API deletes); drift
+    restored in 10.1 s; SC-004 and SC-005 passed; SC-008 0 matches with the gaps above.
+    **SC-001 met on platform latency (maintainer, 2026-11-26):** the platform part, Create to
+    Ready, was 37 s for `Acme`; the rest of the derived 4 min 10 s – 5 min 54 s was the
+    maintainer's idle time before Create (3 min 33 s) and before opening the storefront.
+    Findings: D-1 rollout window, D-3 Wallet logging, D-4 drift wipes shop data.
 
 ---
 
 ## Phase 9: Polish
 
-- [ ] T026 `shophub/README.md` (settings, local run, tests, release); self-review of all 004 PRs;
+- [X] T026 `shophub/README.md` (settings, local run, tests, release); self-review of all 004 PRs;
   set spec.md status to Implemented after the maintainer's OK.
+
+  Progress (2026-11-26):
+  - shophub PR #14 (branch `004-t026-readme`): README brought to 0.2.0 (change, delete, known
+    limits D-1/D-3/D-4, release flow). Merged as `1fd5a9a` (approved) after #15.
+  - #14's `test` failed on `AShopBeingDeletedCannotBeChanged`: a race from #12 (the app's own
+    reconciler removes a hand-marked `Deleting` row when nothing of it is left). Fixed in
+    shophub PR #15 (test-only: the fake cluster keeps the Shop "still there"); reproduced with a
+    32 s pause, fails without the fix and passes with it; CI green. Merged as `0f1264d`
+    (approved); #14's branch was then updated onto main so its CI ran with the fix (green).
+  - Self-review of the 004 PRs (shophub #1–#14, helm-charts #9–#10, kube-state #9–#13,
+    shop-operator #7–#8, shop #8): 12 findings listed to the maintainer. #4 (test race) fixed in
+    shophub #15; #1 and #2 deferred to spec 005 as plan.md D-5 and D-6 (they widen D-1's
+    window); #3, #5, #12 are D-1, D-4, D-3; #6, #7, #8, #10, #11 fixed in kube-state PR #14
+    (README; all checks green incl. `e2e`, merged as `83f49a7`, approved); #9 (Traefik access log, `SafeNaming`) left for
+    spec 006.
+  - spec.md: limits added where it claimed more than T025 proved (D-4 next to the drift edge
+    case and FR-015, D-1/D-3 next to FR-009) and a "Validation (T025)" section. Status set to
+    Implemented (maintainer's OK, 2026-11-26).
 
 ---
 

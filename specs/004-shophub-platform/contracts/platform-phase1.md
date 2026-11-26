@@ -28,14 +28,16 @@ Delivered and deployed before any ShopHub app work (spec Dependencies). CRDs
 | `--ingress-class` | `ingressClassName` | `traefik` | `spec.ingressClassName` of every Shop Ingress |
 | `--trusted-proxy-host` | `trustedProxyHost` | `traefik-proxies.traefik.svc.cluster.local` | Passed to the app as `TRUSTED_PROXY_HOST` (research R5) |
 | `--ingress-namespace` | `ingressNamespace` | `traefik` | First namespace allowed by the Shop NetworkPolicy |
-| `--shophub-namespace` | `shophubNamespace` | `shophub` | Second namespace allowed by the Shop NetworkPolicy |
+| `--shophub-namespace` | `shophubNamespace` | `shophub` | Namespace of the ShopHub app pods allowed by the Shop NetworkPolicy |
+| `--shophub-pod-selector` | `shophubPodLabels` (map) | `app.kubernetes.io/name=shophub,app.kubernetes.io/instance=shophub` | Only pods with all these labels are allowed from `shophubNamespace` (operator 0.3.1) |
 
 ### Reconcile additions (per Shop, owned children, server-side apply)
 
 1. `Ingress <shop>`: host `<shop>.<shop-domain>`, path `/` (Prefix) → Service `<shop>` port 80.
    No `tls` block; the entry point's default certificate covers the host.
 2. `NetworkPolicy <shop>`: selects the Shop's pods. It allows ingress on TCP 80 only from
-   namespaces `traefik` and `shophubNamespace`.
+   namespace `traefik` and from the ShopHub app pods (`shophubNamespace` and
+   `shophubPodLabels` in one peer, so both must match).
 3. Deployment env `TRUSTED_PROXY_HOST`.
 4. `status.url = https://<shop>.<shop-domain>`.
 

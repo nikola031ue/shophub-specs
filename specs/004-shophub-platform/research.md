@@ -96,7 +96,9 @@ stable release that is at least two weeks old.
     closed: the peer address is used, which only makes the lockout stricter).
   - Requests from any other peer keep their peer address.
   - Every Shop also gets an owned **NetworkPolicy**: ingress to the app pods only from pods in
-    namespace `traefik` and in namespace `shophub`, port 80. `shophub` is admitted for one
+    namespace `traefik` and from the ShopHub app pods (namespace `shophub` and the chart's pod
+    labels `app.kubernetes.io/name=shophub,app.kubernetes.io/instance=shophub` in one peer; operator 0.3.1), port 80. Other pods in `shophub`, such as its
+    database, are not admitted. ShopHub is admitted for one
     concrete feature, the FR-016 hand-off: ShopHub reads `GET /api/shop` over the in-cluster
     Service. It is an untrusted peer: its forwarded headers are ignored.
 - **Rationale**: the first design trusted the whole pod CIDR (`TRUSTED_PROXY_CIDRS=10.244.0.0/16`)
@@ -157,14 +159,25 @@ stable release that is at least two weeks old.
 
 ## R7 — ShopHub accounts and sessions (FR-001–FR-005)
 
-- **Decision**: reuse the `shop` patterns.
+- **Decision**: reuse the `shop` patterns. Since 2026-11-25 (Phase 2) the code itself is ported
+  from shop 0.2.0 with its tests: trusted-proxy resolver, lockout store, session check, cookie
+  policy, rate limiting.
   - `PasswordHasher` (PBKDF2) and cookie authentication: 8 h, not sliding, `Secure`, HttpOnly,
     SameSite=Strict.
   - Antiforgery via the `XSRF-TOKEN` cookie and the `X-XSRF-TOKEN` header.
   - Data-Protection keys in the database.
   - A per-session id in the cookie, checked against `owner_sessions`, so sign-out ends only that
     session and a copied cookie stops working.
-  - Lockout counted per (owner, client address): 5 failures in 15 min.
+  - Lockout counted per (owner, client address): 5 failures in 15 min, as fixed-window counters
+    in `signin_lockouts` (shop 0.2.0's store). Plus a per-account ceiling: 50 failures for one
+    owner across addresses in 15 min (maintainer's choice, 2026-11-25). Rejected: no ceiling
+    (a botnet gets 5 guesses per address per 15 min against one account) and a global ceiling
+    as in the shop (one attacker could lock out every owner). Accepted trade-off: someone with
+    10 or more addresses can lock one victim's account for 15 min. Attempts while either scope
+    is locked count nowhere (shop 0.2.0 burst fix).
+  - Sessions: the shop checks one admin session version on every request; ShopHub checks a
+    per-session row (`owner_sessions`) instead. Sign-out deletes that row; a password change
+    deletes every other row of the owner (FR-002).
   - Forwarded headers trusted **only from Traefik**, stricter than shops: ShopHub resolves the
     headless Service `traefik-proxies.traefik.svc.cluster.local` (setting `TRUSTED_PROXY_HOST`)
     by DNS every 30 s and honours `X-Forwarded-For`/`-Proto` only when the TCP peer is one of
@@ -173,8 +186,15 @@ stable release that is at least two weeks old.
     address, which is stricter, never weaker).
   - Enforced as well by a NetworkPolicy in the `shophub` chart: the ShopHub app pods accept TCP
     8080 only from the Traefik pods (Docker Desktop enforces policies, R5).
-  - Registration answers 409 "email already registered". It is unavoidable for a sign-up form,
-    and it is rate-limited per client address (10 per hour).
+  - No account enumeration (FR-001, decided 2026-11-25; replaces the earlier 409 "email already
+    registered"): registration answers 202 with no body and no cookie whether or not the email
+    exists, and always computes one password hash; the panel then signs in. Sign-in with an
+    unknown email returns the wrong-password 401 and verifies against a fixed dummy hash, so both
+    paths cost one PBKDF2 run. Registration is rate-limited per client address (10 per hour).
+    Residual, accepted: without email verification (out of scope), registering an email and then
+    signing in with that password tells whether the email was taken (sign-in fails). That costs a
+    registration (10/hour/address) and a sign-in failure (lockout), and works only one email at a
+    time; email verification would close it.
 - **Alternatives**: ASP.NET Core Identity with EF Core (an ORM and more tables than needed);
   OIDC provider (out of scope; no external IdP). For the proxy list: the pod CIDR (any pod the
   policy admits could forge the header; shops dropped it too, R5); reading Traefik pods through the
@@ -190,24 +210,34 @@ stable release that is at least two weeks old.
     the current Wallet and the Shop, in that order, with labels `shophub.io/owner`,
     `shophub.io/shop` and `app.kubernetes.io/managed-by: shophub`.
   - For records in state `Deleting`, it deletes the Shop, then the Wallet(s) and the
-    DiscordChannel. Once all are gone it removes the record.
-  - It lists `managed-by=shophub` resources and deletes Wallets that no record references (wallet
-    switch leftovers, interrupted creates).
-  - Only one replica reconciles at a time, using a PostgreSQL advisory lock.
+    DiscordChannel, each by name from the record. Once all are gone it removes the record.
+  - It never lists or selects cluster objects. Old Wallet generations are deleted by name
+    (`<id>-w1` up to the one before the current) after a wallet switch. An object without a
+    record, even with ShopHub's labels, is never touched (FR-015).
+  - An interrupted create can't leave an orphan: the record exists before any object, and the
+    next pass applies the rest.
+  - Only one replica reconciles at a time. A pass holds a transaction-level PostgreSQL advisory
+    lock (`pg_try_advisory_xact_lock`), which is released on commit, rollback or a lost
+    connection; a replica that can't get it skips the pass.
 - **Idempotency**:
-  - Create inserts the record with a unique `(owner_id, lower(trim(display_name)))` constraint.
-    A double submit gets 409 or the existing shop.
-  - Because SSA is idempotent, a crash between steps is finished on the next pass. A Wallet or
-    channel can never stay without its record.
+  - Create inserts the record with a unique `(owner_id, lower(trim(display_name)))` constraint,
+    under a row lock on the owner. A double submit or retry with the same name and settings gets
+    the existing shop; the same name with other settings gets 409 (data-model.md `shops`).
+  - Because SSA is idempotent, a crash between steps is finished on the next pass, and a pass
+    with nothing to change leaves every `resourceVersion` as it was. A Wallet or channel can
+    never stay without its record.
 - **Rationale**: one loop gives creation, drift repair, retries and cleanup together; no
   per-request distributed transaction.
 - **Alternatives**: create resources synchronously in the request (partial failures need
   compensation code); watch-based informer (more code for a 30 s target).
+- **Superseded**: an earlier draft listed `managed-by=shophub` objects and pruned Wallets
+  without a record. That was dropped, because ShopHub selects nothing by label (T014): a pruning
+  mistake could reach objects ShopHub doesn't own.
 
 ## R9 — Naming (FR-007, FR-009, FR-018)
 
 - **Decision**:
-  - Generated identifier: `s` + 9 random lowercase base32 characters (for example `s7k2m9qxa1`).
+  - Generated identifier: `s` + 9 random lowercase base32 characters (for example `s7k2m4qxab`).
     It is unique in `shops`, generated on create, retried on a collision.
   - Shop `<id>` (so the host is `<id>.shops.localhost` and the admin Secret is `<id>-admin`).
   - DiscordChannel `<id>` with `channelName: <id>`.
@@ -278,3 +308,43 @@ stable release that is at least two weeks old.
   - Chart `shophub` 0.2.0 is published by the `helm-charts` pipeline. kube-state `shophub` values
     set the image tag and hosts.
 - **Alternatives**: none worth recording; consistency with `shop` matters more.
+
+## R15 — Wallet address checksum in ShopHub (FR-006, FR-009)
+
+- **Decision**: ShopHub checks a wallet address before it creates anything (FR-006), with the
+  same rule as shop-operator's `wallet.NormalizeAddress`:
+  - `0x` + 40 hex digits;
+  - all-lowercase or all-uppercase carries no checksum and is accepted;
+  - mixed case must match EIP-55 exactly.
+
+  The address is stored and sent to the Wallet in EIP-55 form. The code is
+  `shophub/src/ShopHub.Api/Shops/Eip55.cs`.
+- **Keccak-256 is written by hand** (about 100 lines, in `Eip55.cs`):
+  - EIP-55 needs Ethereum's Keccak-256: the original Keccak with padding byte `0x01`.
+  - .NET's `SHA3_256` is the FIPS 202 SHA3-256, which uses padding byte `0x06`, so it gives
+    different digests and can't be used.
+  - .NET has no Keccak of its own, and a crypto package (Nethereum, BouncyCastle) would add a
+    large dependency for one function.
+- **Scope**: the hash is used only to compute and check address checksums. It is never used
+  for passwords, tokens, signatures or anything else security-related. Passwords use
+  `PasswordHasher` (PBKDF2), R7.
+- **Test vectors** (`tests/ShopHub.Api.Tests/Unit/ShopRulesTests.cs`):
+  - Keccak-256 of the empty input is
+    `c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470`.
+  - Keccak-256 of `abc` is
+    `4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45`.
+  - **Cross-check against SHA3:** the same sponge with padding byte `0x06` must equal the
+    platform's `SHA3_256` at input lengths 0, 1, 135, 136, 137, 271, 272 and 500 bytes. 136
+    bytes is the rate, so these lengths cross the block boundaries.
+  - **EIP-55 examples** must pass unchanged: `0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed`,
+    `0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359`,
+    `0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB` and
+    `0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb`. These are the vectors shop-operator's wallet
+    tests use.
+  - **Normalising and refusing:** an all-lowercase or all-uppercase address is converted to
+    its EIP-55 form. A single wrong letter case is refused as a checksum error.
+- **Alternatives**:
+  - Nethereum or BouncyCastle: a large dependency for one function.
+  - No checksum check in ShopHub, leaving it to the operator: a typo would then surface only
+    after the resources exist, as `InvalidChecksum`, instead of as a field error before
+    anything is created.
