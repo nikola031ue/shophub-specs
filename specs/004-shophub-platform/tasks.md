@@ -622,8 +622,10 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     - Maintainer confirmed in the panel and Discord (2026-11-26): the shop showed "being
       deleted" and then left the list; the mistyped name kept Delete disabled; `#suuqyuaaz2`
       disappeared from Discord. The minutes until it left the list were not filled in
-      (`<X>` in the confirmation), so SC-003's 2 minutes isn't measured here. Delete was asked
-      for after 20:34:24 UTC, and everything was gone at the 20:39:20 check.
+      (`<X>` in the confirmation). **Replaced by the T025 measurement:** `Acme`, deleted
+      through the panel on 0.2.0, went from the delete request (22:26:56.978 UTC, its
+      `updated_at`) to no record by 22:27:02.430, so **≤ 5.5 s** (SC-003 < 2 min), with all
+      its objects, database and host gone.
 
 ---
 
@@ -853,6 +855,13 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
       22:24:34) carries `0x7294…2285`. A first "after" attempt got 409 (the first item's stock
       was used up by the "before" order, nothing ordered); the maintainer added item "2" with
       stock 5, which was ordered.
+  - **E5. Deletes, measured — passed.** A watcher polled both records every second. `Light`:
+    request 22:26:15.436 UTC (`updated_at`), record gone by 22:26:20.541, **≤ 5.1 s**. `Acme`:
+    request 22:26:56.978, gone by 22:27:02.430, **≤ 5.5 s** (SC-003 < 2 min). Then, read-only:
+    no Shop, Wallet or DiscordChannel left in any namespace (only `platform-alerts`), nothing
+    named after either shop in `shops` (pods, PVCs, Secrets, Ingress, NetworkPolicy, Redis, CNPG
+    cluster), no PVs; both hosts 404; ShopHub has 0 shops. E3 and E5 both passed for `Acme`, so
+    plan.md D-2 is closed and T022's missing time is replaced.
 
 ---
 
