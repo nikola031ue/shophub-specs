@@ -41,7 +41,9 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   `MintTooLarge()`); compiled `contracts/build/MockUSDT.{abi,bin}` with a pinned `solc`;
   `contracts/README.md` (compiler version, optimizer settings, Remix steps, deployed address
   placeholder); CI step in `.github/workflows/ci.yaml` that recompiles and fails on a diff and a
-  step that fails if any workflow or test setting names a Sepolia/provider host; Go test
+  step that fails if any workflow or test setting names a Sepolia/provider host (only
+  shop-operator reads the chain; shop and shophub have no chain access, so SC-008's "0 CI runs
+  contact Sepolia" is checked there); Go test
   `internal/chain/token_test.go` that starts Anvil (testcontainers-go, new dependency), deploys
   the committed bytecode and checks mint cap, `transfer`, and the `Transfer` event topic. Branch
   `005-token`, PR, **ask before merge**.
@@ -71,8 +73,12 @@ stock once (quickstart Scenario 1, shop part).
   token address → payments unavailable, missing internal token → port 8081 not opened);
   `src/Shop.Api/Storage/Postgres/Scripts/004_payments.sql` and the Redis layout per data-model.md
   `Order.paying_account`, `Order.total_base_units`, `Order.deadline`, `Order.status`,
-  `Order.paid_tx`/`paid_log_index`/`paid_block`/`paid_at`, `Payment.*` (PK `tx_hash`+`log_index`,
-  `unmatched_reason` values), `Chain progress.*`; existing orders migrated as data-model.md says.
+  `Order.paid_tx`/`paid_log_index`/`paid_block`/`paid_at`; `Payment.tx_hash` + `Payment.log_index`
+  (primary key), `Payment.block`, `Payment.block_time`, `Payment.from_account`,
+  `Payment.to_address`, `Payment.value_base_units`, `Payment.order_reference`,
+  `Payment.unmatched_reason`, `Payment.received_at`; `Chain progress.address`,
+  `Chain progress.seen_through_block`, `Chain progress.seen_through_time`; existing orders migrated
+  as data-model.md says.
   Tests: migration on an 0.2.0 database, settings validation.
 - [ ] T007 [US1] Checkout and order lookup (contracts/shop-api.md "Public"): `POST /api/orders`
   takes `payingAccount` (EIP-55, data-model.md `Order.paying_account`), stores
@@ -89,8 +95,8 @@ stock once (quickstart Scenario 1, shop part).
 - [ ] T009 [US1] Matching (research R6; contracts/shop-internal-api.md "POST /internal/chain"):
   `src/Shop.Api/Payments/Matching.cs`; PostgreSQL in one transaction per transfer, Redis
   `src/Shop.Api/Storage/Redis/Scripts/record_transfer.lua`; idempotent on (`tx`, `logIndex`);
-  reasons `amount`, `account`, `late`, `duplicate`, `unknown` (data-model.md
-  `Payment.unmatched_reason`); clears the waiting key on Paid; `chain_progress` only moves forward
+  sets data-model.md `Payment.order_reference` on a match, otherwise `Payment.unmatched_reason`
+  (`amount`, `account`, `late`, `duplicate`, `unknown`); clears the waiting key on Paid; `chain_progress` only moves forward
   (data-model.md `Chain progress.seen_through_block`/`seen_through_time`); 204 only when all is
   stored. Tests on both stores: each reason, redelivery of the same range, two shop copies
   receiving the same transfer at once (Paid once).
@@ -116,8 +122,9 @@ stock once (quickstart Scenario 1, shop part).
 - [ ] T013 [US1] Release shop: PR(s) with CI green → **ask before merge** → **ask before tag**
   `v0.3.0` → image `ghcr.io/nikola031ue/shop:0.3.0`; record tag-to-image time here.
 
-**Checkpoint**: shop 0.3.0 image published; it runs unchanged under operator 0.3.1 (payments
-unavailable, no port 8081). Commit (spec repo).
+**Checkpoint**: shop 0.3.0 image published. It is not rolled out before T024 (together with
+operator 0.4.0): under operator 0.3.1 it would refuse every checkout (`paymentsUnavailable`) and
+open no port 8081. Commit (spec repo).
 
 ---
 
@@ -195,6 +202,9 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
   Tests: unit for the stale status (API PATCH answer shows "being prepared"); k3s
   `tests/ShopHub.Api.Tests/Integration/K3s/` applying the guard manifest: ShopHub's delete works,
   a delete without the annotation is denied, request recording still shows only by-name calls.
+  The guard is applied with the same binding as production (whole shops namespace), so the
+  existing direct delete of a stray Shop in `ReconcilerTests.cs` (line 249) first patches
+  `shophub.io/delete-requested: "true"` onto it.
 - [ ] T022 [US3] Release ShopHub: PR with CI green → **ask before merge** → **ask before tag**
   `v0.3.0` → image; chart `shophub` 0.2.2 (appVersion `0.3.0`) PR → **ask before merge** →
   published.

@@ -23,8 +23,9 @@ How to prove the feature end to end. Contracts: [shop-api](contracts/shop-api.md
 - helm-charts: the delete guard (D-4) in the chart `install` job on kind: a Shop `DELETE` without
   the annotation is denied, with it allowed.
 - shophub: stale status (D-6), annotation before delete (D-4).
-- Expected: no CI job resolves a Sepolia host (checked by a CI step that greps the workflow and
-  test settings for `sepolia`/provider hosts).
+- Expected: no CI job resolves a Sepolia host (checked by a CI step in shop-operator, the only
+  component that reads the chain, which greps its workflow and test settings for
+  `sepolia`/provider hosts).
 
 ## Scenario 2 — Rollout
 

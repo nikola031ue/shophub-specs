@@ -80,7 +80,7 @@ Decisions for the plan. Each: **Decision**, **Rationale**, **Alternatives consid
 
 - **Decision**: In the shop, per delivered transfer (idempotent on tx hash + log index): find the
   order with `paying_account = from AND wallet_address = to AND status = PendingPayment AND
-  total_base_units = value AND placed_block_time <= transfer block time`; if found and the
+  total_base_units = value AND created_at <= transfer block time`; if found and the
   transfer's block time is ≤ its deadline, mark it `Paid` with the payment; otherwise record the
   transfer as unmatched with a reason (`amount`, `account`, `late`, `duplicate`, `unknown`).
   FR-005a: at most one `PendingPayment` order per (paying account) in a shop — PostgreSQL: a
