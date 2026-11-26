@@ -667,6 +667,16 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     (SC-009 < 15 min). An anonymous manifest fetch gives HTTP 200; no visibility change.
   - helm-charts PR #10 (branch `shophub-0.2.1`): chart 0.2.1, appVersion 0.2.0, no template
     changes (the Role already grants `get` and `delete`).
+  - helm-charts PR #10 merged as `53afc41` (approved); `publish` and `verify-public` green.
+  - kube-state PR #13 (only `helm.yaml` chart 0.2.1 and `values.yaml` `image.tag` 0.2.0), all
+    checks green incl. `e2e`, merged as `194126b` (approved). `./bring-up.sh`: only `shophub`
+    upgraded, 5 unchanged, 49 s. 2/2 pods on `shophub:0.2.0`, 0 restarts; migration 3 applied
+    10:34:24 UTC; panel 200, `/healthz` ok.
+  - **Found after the 0.2.0 rollout (2026-11-26), before any live check:** the browser test shop
+    is not there. `shops` holds no Shop, Wallet or DiscordChannel, and the ShopHub database
+    (CNPG `shophub-db`, created 2026-11-25 17:54 UTC) has 0 owners and 0 shops, and its table
+    statistics show no row was ever inserted into `owners` or `shops`. Read-only queries only;
+    nothing was changed. Waiting for the maintainer before the T021/T022 live checks.
   - kube-state PR #12 (branch `004-shophub-0.2.0`): chart 0.2.0, image 0.1.0, host and namespaces.
     All checks green, including `e2e`. Merged as `05791e7` (approved).
   - `./bring-up.sh` on docker-desktop: only `shophub` upgraded (0.1.0 placeholder to chart
