@@ -1,0 +1,40 @@
+# Specification Quality Checklist: Crypto Payments (Requirement 2.4)
+
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-11-27
+**Feature**: [spec.md](../spec.md)
+
+## Content Quality
+
+- [x] No implementation details (languages, frameworks, APIs)
+- [x] Focused on user value and business needs
+- [x] Written for non-technical stakeholders
+- [x] All mandatory sections completed
+
+## Requirement Completeness
+
+- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] Requirements are testable and unambiguous
+- [x] Success criteria are measurable
+- [x] Success criteria are technology-agnostic (no implementation details)
+- [x] All acceptance scenarios are defined
+- [x] Edge cases are identified
+- [x] Scope is clearly bounded
+- [x] Dependencies and assumptions identified
+
+## Feature Readiness
+
+- [x] All functional requirements have clear acceptance criteria
+- [x] User scenarios cover primary flows
+- [x] Feature meets measurable outcomes defined in Success Criteria
+- [x] No implementation details leak into specification
+
+## Notes
+
+- Iteration 1 (2026-11-27): two open questions, each marked twice: Q1 how a transfer is matched to
+  its order (Edge Cases, FR-005); Q2 what happens to a late payment for an expired order (User
+  Story 2 scenario 4, FR-010). Everything else passes.
+- Named on purpose, not as implementation choices: Ethereum Sepolia, MetaMask and mUSDT are fixed
+  by Requirement 2.4 and constitution Principle IV; "blocks" and "final enough" describe how a
+  payment becomes certain, not how it is built.
+- 004 deferred items D-1, D-4, D-5, D-6 are FR-012, FR-015, FR-013, FR-014 (User Story 3).
