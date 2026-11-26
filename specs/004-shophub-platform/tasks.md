@@ -588,6 +588,14 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     - dropping the owner filter fails the isolation DELETE row and the store test.
   - Release after T022 (maintainer, 2026-11-26): one release covers both live checks, T021
     (Scenario 8 steps 1–2) and T022 (the browser test shop).
+  - shophub PR #12 merged as `26ac014` (approved, 2026-11-26).
+  - **Slow-delete reason** (maintainer check, 2026-11-26): the panel showed no reason for a shop
+    stuck in "being deleted". Now, 2 minutes after the delete (SC-003), the list and GET read
+    the shop's objects by name and say what still holds it: the shop and its database, the
+    notification channel (e.g. a finalizer that can't finish) or the wallet record. Object names
+    are never shown; the Angular list already shows `reason` for every state. Committed on
+    shophub branch `004-t022-stuck-delete-reason` (`9f178d8`), not pushed yet. Unit and API
+    tests added; all 321 .NET tests pass and `dotnet format` is clean.
 
 ---
 

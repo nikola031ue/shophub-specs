@@ -71,6 +71,16 @@ give **404** with the same body (FR-005, SC-004).
 A Wallet with `InvalidChecksum` is refused before anything is created (FR-006), so it never
 reaches the panel.
 
+A shop being deleted has no reason for its first 2 minutes (SC-003). After that, ShopHub reads
+the shop's objects by name and names the first one still there, in removal order:
+
+| Still in the cluster | Panel text |
+|----------------------|------------|
+| Shop | Deleting is taking longer than usual: the shop and its database are still being removed. The platform keeps retrying. |
+| DiscordChannel (e.g. a finalizer that can't finish) | Deleting is taking longer than usual: the notification channel can't be removed yet. The platform keeps retrying. |
+| Wallet only | Deleting is taking longer than usual: the wallet record is still being removed. The platform keeps retrying. |
+| nothing | no reason; the record goes on the next pass |
+
 ## Limits and errors
 
 - 503 "temporarily unavailable" when the ShopHub database or the Kubernetes API does not

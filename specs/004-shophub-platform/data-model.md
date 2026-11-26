@@ -167,4 +167,6 @@ Same fixed-window semantics as 003, applied per scope:
 | `Active` | False / missing | < 10 min | being prepared |
 | `Active` | False / missing | ≥ 10 min | needs attention |
 
-The reason text comes from the Shop's `Ready` reason (contracts/panel-api.md).
+The reason text comes from the Shop's `Ready` reason (contracts/panel-api.md). A `Deleting`
+record whose `updated_at` (set when the delete was asked for) is 2 minutes old or more gets a
+reason naming what still holds it (contracts/panel-api.md "Reason texts").
