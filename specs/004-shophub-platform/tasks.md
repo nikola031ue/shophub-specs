@@ -648,7 +648,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     against CNPG in kind, the NetworkPolicy exists, and every `can-i` assertion held.
   - helm-charts PR #9 merged as `7ac6e3c` (approved). `publish` and `verify-public` are green,
     and chart `shophub` 0.2.0 is anonymously pullable.
-- [ ] T024 Release and roll out ShopHub:
+- [X] T024 Release and roll out ShopHub:
   - shophub PR(s) → **ask before merge** → tag `v0.1.0` → image; **ask before** making the
     package public;
   - publish chart 0.2.0 (appVersion 0.1.0);
@@ -683,6 +683,14 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - **T024 reopened (maintainer, 2026-11-26):** a fresh browser end-to-end on 0.2.0 (register,
     create, Ready, Discord channel, open, shop admin sign-in) replaces the withdrawn one. The
     T021 and T022 live checks use the shop created in this run, not the original test shop.
+  - **Fresh browser end-to-end OK on 0.2.0 (maintainer, 2026-11-26)**, shop "Live Check 0.2.0":
+    registered; created the shop; it became Ready; Discord channel `#suuqyuaaz2` appeared;
+    opened over HTTPS; signed in to the shop admin with the panel's password; added an item,
+    which shows on the storefront.
+  - Confirmed read-only: record `suuqyuaaz2` (`Active`, standard/standard, wallet generation 1,
+    created 16:09:01 UTC) is the only shop, and there is 1 owner; Shop `suuqyuaaz2` Ready at
+    `https://suuqyuaaz2.shops.localhost`, Wallet `suuqyuaaz2-w1` (registered) Ready,
+    DiscordChannel `suuqyuaaz2` Ready. This shop is the T021/T022 live-check shop.
   - kube-state PR #12 (branch `004-shophub-0.2.0`): chart 0.2.0, image 0.1.0, host and namespaces.
     All checks green, including `e2e`. Merged as `05791e7` (approved).
   - `./bring-up.sh` on docker-desktop: only `shophub` upgraded (0.1.0 placeholder to chart
