@@ -822,6 +822,21 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
   - **D. Isolation — passed.** Owner B on `Acme`'s id and on an unknown id: GET, PATCH, DELETE
     and admin-password all give the identical 404 body; B's list holds only B's shops; `Acme`
     unchanged.
+  - **E1. `Acme` to high — passed.** Saved in the panel 22:16:26.3 UTC; the third copy Ready
+    22:16:37, so **11 s** to 3/3 (SC-002); the two existing copies weren't restarted. Items (1)
+    and orders (1) unchanged. Before the wallet change, order `34JV98Z2TH` (22:09:51) was placed
+    through the storefront API; it carries `-w1`'s address `0xE3C0…A2Cf`.
+  - **E2. Drift — restored, but data lost (finding).** Done on `Light`, not `Acme`, by the
+    maintainer's decision: deleting `Acme`'s Shop would cascade to its database and lose the item
+    and order the wallet-swap check needs.
+    - Shop `s7r5bvdgh2` deleted by name 22:17:17.5 UTC (the quickstart's recorded hand change).
+      ShopHub recreated it at 22:17:27.6 (**10.1 s**, < 60 s), Ready at 22:17:49 (31.5 s).
+    - **Finding:** the operator removes a shop's data with its Shop, so drift recovery gives an
+      empty shop. Redis pod and volume are new (`pvc-034b…` → `pvc-77cc…`), Secret
+      `s7r5bvdgh2-admin` is new (a newly generated admin password), and the data-protection keys
+      are new; only the fixed schema marker matches. Compared by key fingerprints (sha256 of
+      the values inside the pod), never by printing values. The spec's edge case ("missing
+      resources are put back") holds for the resource, not for the shop's data.
 
 ---
 
