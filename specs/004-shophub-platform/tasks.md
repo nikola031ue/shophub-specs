@@ -734,7 +734,7 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     - signed in to the shop admin with the password from the panel, then changed it.
 
     The test shop stays until T022, whose live check deletes it (see T022).
-- [ ] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
+- [X] T025 Live validation: quickstart Scenario 4 full run from an empty cluster (bring-up under
   15 min, FR-028, SC-009), then Scenarios 5–9; record timings (SC-001–SC-003, SC-009) and the
   secret sweep (SC-008) in this file; clean up test owners' shops via the panel.
 
@@ -862,6 +862,30 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     named after either shop in `shops` (pods, PVCs, Secrets, Ingress, NetworkPolicy, Redis, CNPG
     cluster), no PVs; both hosts 404; ShopHub has 0 shops. E3 and E5 both passed for `Acme`, so
     plan.md D-2 is closed and T022's missing time is replaced.
+  - **E4. Mistyped name — passed** (maintainer, panel): lower-case `light` kept Delete
+    disabled. Both shops showed "being deleted" and then left the list. The API 400 for a
+    mistyped name needs owner A's session (the maintainer's browser), so it rests on the API
+    tests. Discord: the maintainer's line was left unfilled (`<gone / still there>`); read-only,
+    no shop DiscordChannel is left in the cluster, only `platform-alerts`.
+  - **F. Secret sweep — 0 matches (SC-008), with gaps.** A script read 9 values in-process
+    and printed only names and counts: ShopHub DB password, URI and JDBC URI; the Discord token;
+    the TLS key (longest PEM body line); the three test owners' passwords; the
+    `platform-alerts` webhook URL. 0 matches in every commit (`git log --all -p`) and working
+    tree of all six repositories, in ShopHub, shop-operator and Traefik logs, in the three kinds'
+    YAML across all namespaces, and in API responses (session, list, panel page). Positive
+    controls: each source had content and contains a known non-secret string. **Gaps:** the
+    sweep ran after E5, so no shop existed. Shop logs were empty, and the shop admin passwords
+    and `Light`'s Redis password had gone with their Secrets. Owner A's password is the
+    maintainer's and wasn't swept.
+  - **G. Clean up.** No shops left (owners' shops deleted through the panel and, for test owner
+    B, through the API); throwaway pods `t025-np`, `t025-pod-a…` removed (`--rm` or by exact
+    name); test owner B signed out; local password files and cookie jars deleted. The three
+    owner accounts remain (there is no account delete).
+  - **Summary:** SC-009 2 min 45 s (bring-up), 2 min 42 s (tag to image); SC-002 Ready in
+    23–37 s, high in 11 s; SC-003 ≤ 5.1 s and ≤ 5.5 s (panel), 5.5 s (five API deletes); drift
+    restored in 10.1 s; SC-004 and SC-005 passed; SC-008 0 matches with the gaps above.
+    **SC-001 not cleanly measured:** derived 4 min 10 s – 5 min 54 s. Findings: D-1 rollout
+    window, D-3 Wallet logging, D-4 drift wipes shop data.
 
 ---
 
