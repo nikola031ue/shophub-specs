@@ -798,6 +798,30 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     Traefik from throwaway pods: pod A 5 × 401 then the right password 429 (its pod IP locked);
     pod B on another IP, right password 204. A first attempt sent the right password with a
     stray carriage return (my script, 400); rerun as above. All throwaway pods removed.
+  - **C. Create and open — passed; SC-001 only bounded.**
+    - The maintainer's first reply was an unfilled template and nothing had reached ShopHub
+      (no owner, no shops); both port-443 listeners on the machine belong to Docker Desktop,
+      so there is no second ShopHub. The run was then done in the browser.
+    - Owner A registered 21:57:49 UTC (with the maintainer's own address, not
+      `a@example.test`). `Acme` (`seaks6hbki`, standard, PostgreSQL) created 22:01:22, Ready
+      22:01:59 (37 s); `Light` (`s7r5bvdgh2`, standard, Redis) created 22:01:39, Ready 22:02:02
+      (23 s) (SC-002). Wallets `-w1` and DiscordChannels Ready for both.
+    - Shop admin password changed (Acme's `admin.initial = false`, changed 22:03:43), which is
+      what the panel's "changed" state reads; one item added 22:03:56.
+    - **SC-001 derived, not measured:** no clock times were noted, Traefik has no access log and
+      the shop doesn't log requests. The storefront was first opened between Ready (22:01:59)
+      and the admin password change (22:03:43), so registration to first open was between
+      **4 min 10 s** (the Ready bound) and 5 min 54 s; 3 min 33 s of it was before the first
+      create.
+    - API as test owner B: empty name and 101 characters 400 `name`; bad checksum 400
+      `walletAddress`; `availability: medium` 400 `availability`; a duplicate in other letter
+      case 409 `name`; the 6th shop 409 with the limit message. Nothing was created by a refused
+      request. B's five `T025 Limit` shops were then deleted through the API (202 each); all
+      five records were gone 5.5 s after the last delete request (22:09:01.5 → 22:09:06.9), and
+      nothing of theirs was left in `shops`.
+  - **D. Isolation — passed.** Owner B on `Acme`'s id and on an unknown id: GET, PATCH, DELETE
+    and admin-password all give the identical 404 body; B's list holds only B's shops; `Acme`
+    unchanged.
 
 ---
 
