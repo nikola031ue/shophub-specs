@@ -838,6 +838,21 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
       the values inside the pod), never by printing values. The spec's edge case ("missing
       resources are put back") holds for the resource, not for the shop's data.
       Deferred to spec 005 as plan.md D-4.
+  - **E3. Wallet swap on `Acme` — passed (end state).**
+    - The maintainer changed the address in the panel (record saved 22:20:59.6 UTC). Read-only:
+      `wallet_generation = 2`, `oldest_wallet_generation = 2`; Wallet `seaks6hbki-w2`
+      (`0x7294…2285`, created 22:20:59) Ready; the Shop's `walletRef` is `seaks6hbki-w2`;
+      `seaks6hbki-w1` gone.
+    - The order in time (`-w2` Ready and the Shop on it before `-w1` was deleted) wasn't seen
+      live: the first look was the end state, and Wallet creates and deletes aren't logged
+      (D-3). It rests on the k3s wallet-switch test and on `oldest_wallet_generation`, which
+      moves only after the old Wallet's delete succeeded.
+    - Rollout: the Shop reported Ready at 22:21:22 while one old copy (old `WALLET_ADDRESS`)
+      still ran for a few seconds; then all 3 copies on `0x7294…2285`. Added to plan.md D-1.
+    - Orders: `34JV98Z2TH` (before, 22:09:51) keeps `0xE3C0…A2Cf`; `2DD822JZBV` (after,
+      22:24:34) carries `0x7294…2285`. A first "after" attempt got 409 (the first item's stock
+      was used up by the "before" order, nothing ordered); the maintainer added item "2" with
+      stock 5, which was ordered.
 
 ---
 
