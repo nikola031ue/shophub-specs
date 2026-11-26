@@ -595,7 +595,9 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     notification channel (e.g. a finalizer that can't finish) or the wallet record. Object names
     are never shown; the Angular list already shows `reason` for every state. Committed on
     shophub branch `004-t022-stuck-delete-reason` (`9f178d8`), not pushed yet. Unit and API
-    tests added; all 321 .NET tests pass and `dotnet format` is clean.
+    tests added; all 321 .NET tests pass and `dotnet format` is clean. shophub PR #13 merged as
+    `04abe2a` (approved, 2026-11-26).
+  - Released in shophub `v0.2.0` (see T024); live check after the rollout.
 
 ---
 
@@ -659,6 +661,12 @@ shop reads answer 503 there. The first real run is with the chart on Docker Desk
     or made.
   - GitHub returned intermittent 500/502 errors on merge, tag push and re-run (about
     15:40–16:05 UTC). Each was retried and verified; nothing was half-applied.
+  - **Release 0.2.0 (T021 + T022, approved 2026-11-26):** shophub `v0.2.0` tagged on `04abe2a`
+    (annotated; only the tag pushed). Tag pushed 07:19:48 UTC; the `release` job pushed
+    `ghcr.io/nikola031ue/shophub:0.2.0` by 07:22:30, so **2 min 42 s from tag to pullable image**
+    (SC-009 < 15 min). An anonymous manifest fetch gives HTTP 200; no visibility change.
+  - helm-charts PR #10 (branch `shophub-0.2.1`): chart 0.2.1, appVersion 0.2.0, no template
+    changes (the Role already grants `get` and `delete`).
   - kube-state PR #12 (branch `004-shophub-0.2.0`): chart 0.2.0, image 0.1.0, host and namespaces.
     All checks green, including `e2e`. Merged as `05791e7` (approved).
   - `./bring-up.sh` on docker-desktop: only `shophub` upgraded (0.1.0 placeholder to chart
