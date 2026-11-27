@@ -36,7 +36,7 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   `kubectl create secret generic shop-operator-rpc -n shop-operator-system --from-literal=url="$SEPOLIA_RPC_URL"`
   on docker-desktop (quickstart M2; data-model.md "Platform settings and Secrets"
   `payments.rpcSecretName`). Agent checks only that key `url` is non-empty (prints its length).
-- [ ] T003 Token source and tests in shop-operator (contracts/musdt.md, research R8):
+- [X] T003 Token source and tests in shop-operator (contracts/musdt.md, research R8):
   `contracts/MockUSDT.sol` (OpenZeppelin ERC20 pinned, 6 decimals, `mint` capped at 1,000 mUSDT,
   `MintTooLarge()`); compiled `contracts/build/MockUSDT.{abi,bin}` with a pinned `solc`;
   `contracts/README.md` (compiler version, optimizer settings, Remix steps, deployed address
@@ -64,13 +64,20 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
     binaries are Linux-only). The other operator test packages pass.
   - **Fix on the way:** the first CI run failed with "receipt: not found". Anvil's receipt can lag
     the send on a slow runner, so the helper now waits for it (30 s, 100 ms steps).
+  - Merged as shop-operator `f54cecf` (approved, 2026-11-27).
 - [ ] T004 [MANUAL] **M3 Remix deploy** (only after T003 is merged, so the deployed source is the
   reviewed, tested one): maintainer deploys `contracts/MockUSDT.sol` from `main` on Sepolia
   from their own MetaMask with the settings in `contracts/README.md`, and verifies the source on
   the explorer (quickstart M3). Agent records the address in `contracts/README.md` (PR, ask before
   merge) and in this file; it goes into kube-state in T024.
+  Bytecode check (maintainer, 2026-11-27): Remix's output may differ only in the trailing CBOR
+  metadata (it hashes source paths); compare with that stripped (the last 2 bytes give its length),
+  and only the code before it must match `contracts/build/MockUSDT.bin`.
 - [ ] T005 [MANUAL] **M4 tester wallets**: maintainer prepares MetaMask accounts A and B with
   Sepolia ETH from a public faucet (quickstart M4). Needed by Phase 4 only.
+
+  Progress: A = `0xE3C0…A2Cf`, B = `0x7294…2285` (maintainer, 2026-11-27); B is being funded with
+  Sepolia ETH.
 
 **Checkpoint**: token on Anvil in CI; address known; Secret present. Commit (spec repo).
 
