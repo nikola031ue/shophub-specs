@@ -460,7 +460,21 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
       cursor is left behind.
     - **Operator defect:** the watcher never compares `eth_chainId` with `--payments-chain-id`,
       so a wrong-chain endpoint reports `PaymentsWatching=True`. It is also why this went unseen.
-      A fix has been proposed (awaiting decision).
+      Fix approved: shop-operator PR #12 (`WrongChain`, and a read position above the head is
+      `CursorAheadOfChain`); CI green, waiting for merge approval.
+  - **Check 2 redone on Sepolia (2026-11-27):**
+    - the maintainer recreated the Secret with a rotated key: created 19:17:42 UTC, host
+      `eth-sepolia.g.alchemy.com`, `eth_chainId` `0xaa36a7`;
+    - 0 Wallets existed, so no mainnet read position was left anywhere;
+    - test shop `sc5vaqjdo5` through the ShopHub API (owner `t024-sepolia@example.test`, password
+      never shown), still under operator 0.4.0;
+    - `PaymentsWatching=True/Watching` 7 s after the create; the operator logged a connection to
+      `eth-sepolia.g.alchemy.com`;
+    - 6 samples over 65 s: read position = head − 6, or − 7 when sampled between a new block and
+      the next 12 s poll. The head was 12225233 → 12225239, the same on the Secret's endpoint
+      and on a public Sepolia node;
+    - delete through ShopHub: 202 at 19:19:52, 404 at 19:19:57; nothing left in `shops`; no
+      operator errors; signed out, cookie jar deleted.
 - [ ] T025 Live payments with the maintainer in the browser (M4 wallets): quickstart Scenarios 3
   (pay, FR-005a refusal), 4 (wrong amount, wrong account, duplicate) and 5 (expiry on a `high`
   shop, then a late payment); record SC-001, SC-002, SC-003 timings here.
