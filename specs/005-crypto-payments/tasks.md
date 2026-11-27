@@ -460,8 +460,18 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
       cursor is left behind.
     - **Operator defect:** the watcher never compares `eth_chainId` with `--payments-chain-id`,
       so a wrong-chain endpoint reports `PaymentsWatching=True`. It is also why this went unseen.
-      Fix approved: shop-operator PR #12 (`WrongChain`, and a read position above the head is
-      `CursorAheadOfChain`); CI green, waiting for merge approval.
+      Fixed and rolled out (approved as one chain, 2026-11-27):
+      - shop-operator #12 adds `WrongChain`, and a read position above the head is
+        `CursorAheadOfChain`; both proven by a mutation. Merged as `ca4f710`, tag `v0.4.1`,
+        5 min 23 s from tag to pullable image;
+      - chart shop-operator 0.5.1 (helm-charts #13, `fd52236`): appVersion 0.4.1, CRD comment sync;
+      - kube-state #17 (`7620070`), all checks green incl. `e2e`;
+      - `./bring-up.sh`: only `shop-operator` upgraded, 53 s; pod on `shop-operator:0.4.1`.
+      - Test shop `spwdr6egua` (owner `t024-041@example.test`):
+        - `PaymentsWatching=True/Watching` 6 s after the create;
+        - connection log names `eth-sepolia.g.alchemy.com`, chain id `11155111`;
+        - read position 12225338 with head 12225345 (one poll behind);
+        - ShopHub delete 202 at 19:41:41, 404 at 19:41:47; nothing left; no operator errors.
   - **Check 2 redone on Sepolia (2026-11-27):**
     - the maintainer recreated the Secret with a rotated key: created 19:17:42 UTC, host
       `eth-sepolia.g.alchemy.com`, `eth_chainId` `0xaa36a7`;
