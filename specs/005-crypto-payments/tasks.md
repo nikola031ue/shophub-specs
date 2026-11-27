@@ -257,7 +257,7 @@ waiting = 0; readiness false while old pods run (quickstart Scenario 1, operator
   ShopHub; held while an old pod runs).
 - [X] T019 [US1] Release operator: PR(s) with CI green → **ask before merge** → **ask before tag**
   `v0.4.0` → image; `hack/sync-chart.sh` output for the chart.
-- [ ] T020 [US3] Chart `shop-operator` 0.5.0 in helm-charts (contracts/operator.md "Shop deletion
+- [X] T020 [US3] Chart `shop-operator` 0.5.0 in helm-charts (contracts/operator.md "Shop deletion
   guard", "Chart"): `charts/shop-operator/values.yaml` `payments.*` and `shopDeleteGuard.enabled`;
   `payments.rpcSecretName` as optional `secretKeyRef` in `templates/deployment.yaml`; new
   `templates/admission-policy.yaml` (ValidatingAdmissionPolicy + Binding, research R11) and
@@ -315,6 +315,8 @@ Progress T014–T018 (2026-11-27):
     - CI pins kind `kindest/node:v1.32.2`. The `install` log shows: egress policy present; an
       unannotated delete "denied request: Shops are deleted through ShopHub…"; annotated
       delete ok; `namespace "shops" deleted` with an unannotated Shop still in it.
+    - Merged as helm-charts `10a2375` (approved, 2026-11-27); `publish` and `verify-public`
+      green, so chart 0.5.0 is public.
 
 **Checkpoint**: operator 0.4.0 and chart 0.5.0 published. Commit (spec repo).
 
@@ -336,6 +338,22 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
   The guard is applied with the same binding as production (whole shops namespace), so the
   existing direct delete of a stray Shop in `ReconcilerTests.cs` (line 249) first patches
   `shophub.io/delete-requested: "true"` onto it.
+  Progress (2026-11-27):
+  - **shophub PR #16** (branch `005-shophub`), CI green.
+  - **D-4:** `DeleteShopAsync` merge-patches `shophub.io/delete-requested` by name, then deletes.
+  - **D-6:** `GetShopStatusAsync` gives reason `ChangePending` ("Applying your change.") while
+    the status or Ready condition `observedGeneration` is behind `metadata.generation`; a status
+    without `observedGeneration` is taken as is.
+  - **k3s tests:** the cluster runs the production guard
+    (`tests/.../K3s/Manifests/shop-delete-guard.yaml`, rendered from chart 0.5.0, whole `shops`
+    namespace); startup waits until a dry-run bare delete is refused.
+    - New tests: a bare delete refused; ShopHub's delete = one PATCH then DELETE; a stale status
+      not ready.
+    - The stray-Shop test now deletes via `DeleteShopAsAdminAsync` (annotate, then delete).
+    - The delete-pass test now expects that one PATCH.
+  - **Checks:** 323 .NET tests and 58 Angular tests pass; `dotnet format` and `ng lint` are
+    clean.
+  - **Mutation checks:** no annotation fails 2 tests; no stale check fails 1.
 - [ ] T022 [US3] Release ShopHub: PR with CI green → **ask before merge** → **ask before tag**
   `v0.3.0` → image; chart `shophub` 0.2.2 (appVersion `0.3.0`) PR → **ask before merge** →
   published.
