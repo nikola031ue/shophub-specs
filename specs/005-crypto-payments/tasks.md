@@ -397,7 +397,7 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
       ShopHub logs;
     - so the annotation is harmless before the guard exists. Test password and cookie jar
       deleted afterwards.
-- [ ] T024 kube-state PR B: `clusters/local/shop-operator/{helm.yaml,values.yaml}` chart 0.5.0,
+- [X] T024 kube-state PR B: `clusters/local/shop-operator/{helm.yaml,values.yaml}` chart 0.5.0,
   `payments.tokenAddress` from T004, shop app image `0.3.0` → **ask before merge** →
   `./bring-up.sh`; quickstart Scenario 2 (Wallets `PaymentsWatching=True`, cursors follow head − 6,
   logs show the provider host only).
@@ -411,6 +411,47 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
     `clusters/local/shophub/values.yaml` has `image.tag` < 0.3.0;
   - a **live check before `./bring-up.sh`**: the running ShopHub Deployment's image is
     `ghcr.io/nikola031ue/shophub:0.3.0` and its rollout is complete; otherwise stop.
+
+  Done (2026-11-27):
+  - **kube-state PR #16** squash-merged as `57062da` (approved); all 8 checks green incl. `e2e`.
+    It changes:
+    - operator chart 0.5.0, `shopImage.tag` 0.3.0, `payments.tokenAddress`;
+    - new `pairing` check + 7 bats tests. Flipping ShopHub back to 0.2.0 gives exit 1 with
+      "Roll out ShopHub 0.3.0 first";
+    - `scan-secrets` flagged `tokenAddress` (key contains "token"). It now lets a key ending in
+      `address` hold exactly a `0x` + 40-hex value; a 64-hex private key or any other value is
+      still flagged (+4 bats tests);
+    - README "Payments" and the pairing rule.
+  - **Live check before bring-up:** `shophub:0.3.0`, rollout complete; Secret
+    `shop-operator-rpc` present (name only); no shops.
+  - **`./bring-up.sh`:** only `shop-operator` upgraded, 5 unchanged, 54 s.
+  - **After bring-up:**
+    - pod on `shop-operator:0.4.0`, 0 restarts;
+    - the chart has its CRDs in `templates/`, so `helm upgrade` applied them: the live Wallet CRD
+      has `status.payments` with `scannedThroughBlock`, `scannedThroughTime`, `lastError`,
+      `lastErrorMessage`, `lastErrorTime`;
+    - policy and binding `shop-operator-shop-delete-guard` and NetworkPolicy
+      `shop-operator-egress` exist;
+    - "Payment watcher started" logs the token, 6 confirmations and range 10. No provider URL or
+      host appears in the logs.
+  - **Test shop** through the ShopHub API (test owner `t024-check@example.test`, password
+    generated and never shown): `s2ln27qpad` (standard, light), Wallet
+    `0x5aAe…eAed` (public EIP-55 example address).
+    - `PaymentsWatching=True/Watching` 8 s after the create;
+    - shop Ready at 16:54:26 UTC on `shop:0.3.0`;
+    - **cursor = head − 6 exactly** in 5 samples over 55 s, from head 26507865 to 26507870; head
+      read through the RPC Secret, URL never printed.
+  - **Bare `kubectl -n shops delete shop s2ln27qpad`** was refused with "Shops are deleted
+    through ShopHub; this Shop has no shophub.io/delete-requested annotation."; the Shop stayed
+    unchanged (no deletionTimestamp, no annotation).
+  - **Delete through ShopHub:**
+    - `DELETE /api/shops/s2ln27qpad` answered 202 at 16:54:34 UTC;
+    - Shop, Wallet and DiscordChannel were gone by the next check (same second);
+    - the record was 404 at 16:54:44 and the list was empty;
+    - nothing left in `shops`; no errors in the ShopHub or operator logs;
+    - signed out; cookie jar deleted.
+  - Not done here: rolling the operator back to chart 0.4.0 or removing the guard. Phase 4
+    (T025–T027) not started.
 - [ ] T025 Live payments with the maintainer in the browser (M4 wallets): quickstart Scenarios 3
   (pay, FR-005a refusal), 4 (wrong amount, wrong account, duplicate) and 5 (expiry on a `high`
   shop, then a late payment); record SC-001, SC-002, SC-003 timings here.
