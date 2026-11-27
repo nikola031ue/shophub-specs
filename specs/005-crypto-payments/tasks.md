@@ -77,6 +77,11 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   Bytecode check (maintainer, 2026-11-27): Remix's output may differ only in the trailing CBOR
   metadata (it hashes source paths); compare with that stripped (the last 2 bytes give its length),
   and only the code before it must match `contracts/build/MockUSDT.bin`.
+  - Compare script first proven both ways: a one-byte change in the code gives DIFFERENT; a
+    one-byte change inside the metadata only gives MATCH.
+  - Remix compile (before deploy, 2026-11-27): code before the metadata **matches** the
+    committed build byte for byte (2,373 bytes); only the 51-byte CBOR metadata differs, as
+    expected. Its trailer says solc 0.8.28.
 - [ ] T005 [MANUAL] **M4 tester wallets**: maintainer prepares MetaMask accounts A and B with
   Sepolia ETH from a public faucet (quickstart M4). Needed by Phase 4 only.
 
