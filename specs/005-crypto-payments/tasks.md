@@ -328,7 +328,7 @@ Progress T014–T018 (2026-11-27):
 **Independent test**: k3s with the guard applied: ShopHub's delete passes, a bare delete is
 denied; a status with an older `observedGeneration` maps to "being prepared".
 
-- [ ] T021 [US3] D-6 and D-4 in `src/ShopHub.Api/Shops/KubeGateway.cs` (research R11, R12;
+- [X] T021 [US3] D-6 and D-4 in `src/ShopHub.Api/Shops/KubeGateway.cs` (research R11, R12;
   data-model.md "ShopHub"): `GetShopStatusAsync` not ready (reason text "Applying your change." in
   `src/ShopHub.Api/Shops/ReasonTexts.cs`) while `status.observedGeneration < metadata.generation`;
   `DeleteShopAsync` patches `shophub.io/delete-requested: "true"` on the Shop, then deletes it.
@@ -354,11 +354,24 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
   - **Checks:** 323 .NET tests and 58 Angular tests pass; `dotnet format` and `ng lint` are
     clean.
   - **Mutation checks:** no annotation fails 2 tests; no stale check fails 1.
-- [ ] T022 [US3] Release ShopHub: PR with CI green → **ask before merge** → **ask before tag**
+  - Merged as shophub `5d6caf7` (approved, 2026-11-27); main CI green.
+- [X] T022 [US3] Release ShopHub: PR with CI green → **ask before merge** → **ask before tag**
   `v0.3.0` → image; chart `shophub` 0.2.2 (appVersion `0.3.0`) PR → **ask before merge** →
   published.
 
-**Checkpoint**: ShopHub 0.3.0 and chart 0.2.2 published. Commit (spec repo).
+  Progress T022 (2026-11-27):
+  - **Release:** `v0.3.0` tagged on `5d6caf7` (approved). Tag pushed 14:29:30 UTC; `release`
+    finished 14:33:04, so **3 min 34 s** to `ghcr.io/nikola031ue/shophub:0.3.0`; anonymous pull
+    200.
+  - **RBAC confirmed:** the chart's Role in `shops` grants `patch` on `shops` (the annotation
+    needs it). `check-shophub-rbac.sh` run locally: "the chart renders exactly the tested Role
+    and RoleBinding". The k3s tests run ShopHub under that same Role (`shophub-rbac.yaml`, kept
+    equal by `rbac-drift`), so the annotate-then-delete path was tested with the real RBAC
+    against the production guard.
+  - **Chart:** helm-charts PR #12, chart `shophub` 0.2.2 (appVersion 0.3.0), all checks green,
+    merged as `0f4c548` (approved); `publish` and `verify-public` green.
+
+**Checkpoint**: ShopHub 0.3.0 and chart 0.2.2 published (reached 2026-11-27). Commit (spec repo).
 
 ---
 
@@ -366,9 +379,24 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
 
 **Goal**: the platform runs 005 and the quickstart passes on Sepolia.
 
-- [ ] T023 kube-state PR A: `clusters/local/shophub/{helm.yaml,values.yaml}` chart 0.2.2, image
+- [X] T023 kube-state PR A: `clusters/local/shophub/{helm.yaml,values.yaml}` chart 0.2.2, image
   `0.3.0` → **ask before merge** → `./bring-up.sh` (ShopHub first, plan "Rollout order"); check
   panel delete still works with the old operator.
+
+  Progress (2026-11-27):
+  - **kube-state PR #15:** only `clusters/local/shophub/{helm.yaml,values.yaml}` (chart 0.2.2,
+    image 0.3.0); all checks green incl. `e2e`; merged as `8324cd3` (approved).
+  - **`./bring-up.sh`:** only `shophub` upgraded, 5 unchanged, 65 s. 2/2 pods on
+    `shophub:0.3.0`, 0 restarts, `/healthz` ok. The operator is still chart 0.4.0
+    (`shop-operator:0.3.1`) and there is no ValidatingAdmissionPolicy yet.
+  - **Panel delete check (API as test owner `t023-delete@example.test`):**
+    - shop `s4vhzqypv5` (standard, Redis) Ready in about 15 s;
+    - DELETE with its exact name answered 202 at 14:44:10 UTC, and the record was 404 about 3 s
+      later;
+    - no Shop, Wallet, DiscordChannel or other object of it left in `shops`; no errors in the
+      ShopHub logs;
+    - so the annotation is harmless before the guard exists. Test password and cookie jar
+      deleted afterwards.
 - [ ] T024 kube-state PR B: `clusters/local/shop-operator/{helm.yaml,values.yaml}` chart 0.5.0,
   `payments.tokenAddress` from T004, shop app image `0.3.0` → **ask before merge** →
   `./bring-up.sh`; quickstart Scenario 2 (Wallets `PaymentsWatching=True`, cursors follow head − 6,
