@@ -450,8 +450,17 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
     - the record was 404 at 16:54:44 and the list was empty;
     - nothing left in `shops`; no errors in the ShopHub or operator logs;
     - signed out; cookie jar deleted.
-  - Not done here: rolling the operator back to chart 0.4.0 or removing the guard. Phase 4
-    (T025–T027) not started.
+  - **Correction (found at the start of T025, 2026-11-27):** the RPC Secret points to Ethereum
+    **mainnet**: host `eth-mainnet.g.alchemy.com`, `eth_chainId` `0x1` instead of `0xaa36a7`.
+    The token has no code there. So "cursor = head − 6" above was measured on mainnet blocks
+    (Sepolia's head was about 12.2 M, not 26.5 M). It shows the watcher's paging and confirmation
+    lag work, but not that it reads Sepolia. Two follow-ups:
+    - **M2 redo** (maintainer): recreate `shop-operator-rpc` with a Sepolia endpoint. The watcher
+      re-reads the Secret every pass, so no restart is needed; no Wallets exist, so no mainnet
+      cursor is left behind.
+    - **Operator defect:** the watcher never compares `eth_chainId` with `--payments-chain-id`,
+      so a wrong-chain endpoint reports `PaymentsWatching=True`. It is also why this went unseen.
+      A fix has been proposed (awaiting decision).
 - [ ] T025 Live payments with the maintainer in the browser (M4 wallets): quickstart Scenarios 3
   (pay, FR-005a refusal), 4 (wrong amount, wrong account, duplicate) and 5 (expiry on a `high`
   shop, then a late payment); record SC-001, SC-002, SC-003 timings here.
