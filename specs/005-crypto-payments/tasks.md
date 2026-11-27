@@ -47,6 +47,23 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   `internal/chain/token_test.go` that starts Anvil (testcontainers-go, new dependency), deploys
   the committed bytecode and checks mint cap, `transfer`, and the `Transfer` event topic. Branch
   `005-token`, PR, **ask before merge**.
+
+  Progress (2026-11-27):
+  - **shop-operator PR #9** (branch `005-token`), CI green.
+  - **Token:** `contracts/MockUSDT.sol` (OpenZeppelin 5.1.0 pinned in `package.json`/lockfile;
+    `MAX_MINT`, `MintTooLarge(requested, max)`); `contracts/build.sh` with `ethereum/solc:0.8.28`,
+    optimizer 200, EVM cancun; committed `build/MockUSDT.{abi,bin}`. The CI rebuild on Linux is
+    byte-identical to the build committed from Windows.
+  - **Tests:** `internal/chain/{anvil,token}_test.go` on Anvil `ghcr.io/foundry-rs/foundry:v1.0.0`
+    via testcontainers-go v0.37.0 (Anvil default accounts). They cover metadata, the mint cap,
+    `transfer` and the `Transfer` log, plus the hard-coded selectors and topic.
+  - **CI checks:** `hack/check-no-chain-hosts.sh` matches host names, provider domains and the
+    chain id, not the word "Sepolia" (CRD descriptions use it). A planted provider URL is caught.
+  - **Mutation:** cap raised to 2,000 → the cap test fails.
+  - **Lint:** `golangci-lint` 0 issues (run in the Linux dev container; the local `make` and lint
+    binaries are Linux-only). The other operator test packages pass.
+  - **Fix on the way:** the first CI run failed with "receipt: not found". Anvil's receipt can lag
+    the send on a slow runner, so the helper now waits for it (30 s, 100 ms steps).
 - [ ] T004 [MANUAL] **M3 Remix deploy** (only after T003 is merged, so the deployed source is the
   reviewed, tested one): maintainer deploys `contracts/MockUSDT.sol` from `main` on Sepolia
   from their own MetaMask with the settings in `contracts/README.md`, and verifies the source on
