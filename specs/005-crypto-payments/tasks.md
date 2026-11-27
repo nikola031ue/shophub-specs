@@ -221,11 +221,11 @@ the delete guard and the egress policy.
 after 6 blocks, catch-up pages ≤10 blocks, cursor advances only on 204; Wallet deletion held until
 waiting = 0; readiness false while old pods run (quickstart Scenario 1, operator part).
 
-- [ ] T014 [P] [US3] D-5 readiness (contracts/operator.md "Shop readiness", research R10) in
+- [X] T014 [P] [US3] D-5 readiness (contracts/operator.md "Shop readiness", research R10) in
   `internal/controller/shop_controller.go` `availableReplicas`: rollout in progress unless
   `replicas == updatedReplicas` and no terminating replicas besides the existing checks. Test:
   envtest with a Deployment status showing an extra old replica → not Ready (reproduces 004 T025 E3).
-- [ ] T015 [US1] Shop wiring (contracts/operator.md "Shop app wiring"; data-model.md "Derived
+- [X] T015 [US1] Shop wiring (contracts/operator.md "Shop app wiring"; data-model.md "Derived
   Secret" `<shop>-internal.token`): generate the Secret once in `internal/resources/secrets.go`;
   env `TOKEN_ADDRESS`, `CHAIN_ID`, `EXPLORER_TX_URL`, `ORDER_PAYMENT_MINUTES`, `INTERNAL_TOKEN`
   in `internal/resources/resources.go`; Service port `internal` 8081 and NetworkPolicy ingress
@@ -233,7 +233,7 @@ waiting = 0; readiness false while old pods run (quickstart Scenario 1, operator
   (data-model.md "Platform settings and Secrets") in `internal/controller/config.go` and
   `cmd/main.go`. Tests: resources and envtest (Secret never regenerated, env present, Ingress
   still on `http`).
-- [ ] T016 [US1] Watcher (research R1–R3; contracts/operator.md "Chain watcher"):
+- [X] T016 [US1] Watcher (research R1–R3; contracts/operator.md "Chain watcher"):
   `internal/chain/watcher.go` leader-elected Runnable every `pollSeconds`; confirmed head =
   head − `confirmations`; one `eth_getLogs` per ≤ `logsBlockRange` range with the Wallet topic
   OR-filter; Wallet status `payments.scannedThroughBlock`/`scannedThroughTime` (data-model.md
@@ -242,20 +242,20 @@ waiting = 0; readiness false while old pods run (quickstart Scenario 1, operator
   only its host ever logged. Add the status fields to `api/v1alpha1/wallet_types.go` and
   regenerate the CRD. Tests on Anvil: confirmations respected, 1 h catch-up in ≤10-block pages,
   no Secret/no token address → idle with the right reason.
-- [ ] T017 [US1] Delivery (contracts/shop-internal-api.md; contracts/operator.md):
+- [X] T017 [US1] Delivery (contracts/shop-internal-api.md; contracts/operator.md):
   `internal/chain/deliver.go` posts per Wallet (label `shophub.io/shop`) with the bearer token,
   heartbeat when no transfers, 5 s timeout, cursor patched only after 204, `ShopUnreachable`
   without blocking other shops, backoff 12 s → 2 min on provider errors. Tests with a fake shop
   server: failure holds only that Wallet's cursor; redelivery after recovery; no transfer lost or
   delivered to the wrong shop.
-- [ ] T018 [US3] D-1 Wallet release (research R9; contracts/operator.md "Wallet deletion") in
+- [X] T018 [US3] D-1 Wallet release (research R9; contracts/operator.md "Wallet deletion") in
   `internal/controller/wallet_controller.go`: finalizer `shophub.io/in-use-protection` removed
   only when no Shop references it and (owning Shop gone or being deleted with
   `shophub.io/delete-requested`, or fully rolled out per T014 and `/internal/wallets/{address}/waiting`
   = 0); otherwise `Ready=False` `WaitingForOrders`, requeue 60 s. Tests: envtest + fake shop
   (held while waiting = 2, released at 0; released at once when the Shop is deleted through
   ShopHub; held while an old pod runs).
-- [ ] T019 [US1] Release operator: PR(s) with CI green → **ask before merge** → **ask before tag**
+- [X] T019 [US1] Release operator: PR(s) with CI green → **ask before merge** → **ask before tag**
   `v0.4.0` → image; `hack/sync-chart.sh` output for the chart.
 - [ ] T020 [US3] Chart `shop-operator` 0.5.0 in helm-charts (contracts/operator.md "Shop deletion
   guard", "Chart"): `charts/shop-operator/values.yaml` `payments.*` and `shopDeleteGuard.enabled`;
@@ -302,6 +302,20 @@ Progress T014–T018 (2026-11-27):
       paging; D-1 without the rollout check; D-1 ignoring the waiting count; no `Stalled`.
   - **Test-only change:** `markDeploymentAvailable` lost its count parameter (always 2; lint).
 
+  - Merged as shop-operator `4eeb4bc` (approved, 2026-11-27); main CI green.
+  - **T019 release:** `v0.4.0` tagged on `4eeb4bc` (approved). Tag pushed 12:31:23 UTC; the
+    `release` job finished 12:35:24, so **4 min 01 s** to `ghcr.io/nikola031ue/shop-operator:0.4.0`;
+    the image can be pulled anonymously.
+  - **T020:** helm-charts PR #11 (branch `shop-operator-0.5.0`), CI green, waiting for merge
+    approval.
+    - Chart 0.5.0 (appVersion 0.4.0): `payments.*` values as flags, `--operator-pod-selector`
+      from the chart's selector labels, `templates/admission-policy.yaml` (the guard, with the
+      controller exemption), `templates/networkpolicy.yaml` (egress), synced CRDs/RBAC,
+      `shopImage` default shop 0.3.0.
+    - CI pins kind `kindest/node:v1.32.2`. The `install` log shows: egress policy present; an
+      unannotated delete "denied request: Shops are deleted through ShopHub…"; annotated
+      delete ok; `namespace "shops" deleted` with an unannotated Shop still in it.
+
 **Checkpoint**: operator 0.4.0 and chart 0.5.0 published. Commit (spec repo).
 
 ---
@@ -341,6 +355,16 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
   `payments.tokenAddress` from T004, shop app image `0.3.0` → **ask before merge** →
   `./bring-up.sh`; quickstart Scenario 2 (Wallets `PaymentsWatching=True`, cursors follow head − 6,
   logs show the provider host only).
+
+  **Hard rule (maintainer, 2026-11-27):** kube-state must not move the operator chart to 0.5.0
+  until ShopHub 0.3.0 is running. Chart 0.5.0's delete guard refuses a Shop delete without
+  `shophub.io/delete-requested`, which older ShopHub doesn't write, so panel deletes would fail.
+  Enforced twice in this task:
+  - a **kube-state CI check** (validate workflow, with a bats test): fail when
+    `clusters/local/shop-operator/helm.yaml` pins chart ≥ 0.5.0 while
+    `clusters/local/shophub/values.yaml` has `image.tag` < 0.3.0;
+  - a **live check before `./bring-up.sh`**: the running ShopHub Deployment's image is
+    `ghcr.io/nikola031ue/shophub:0.3.0` and its rollout is complete; otherwise stop.
 - [ ] T025 Live payments with the maintainer in the browser (M4 wallets): quickstart Scenarios 3
   (pay, FR-005a refusal), 4 (wrong amount, wrong account, duplicate) and 5 (expiry on a `high`
   shop, then a late payment); record SC-001, SC-002, SC-003 timings here.
