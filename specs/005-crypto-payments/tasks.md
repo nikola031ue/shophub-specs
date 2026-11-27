@@ -112,7 +112,7 @@ storefront and admin.
 transfer marks an order Paid once, every wrong one is recorded with its reason, expiry returns
 stock once (quickstart Scenario 1, shop part).
 
-- [ ] T006 [US1] Settings and schema: `src/Shop.Api/Settings.cs` reads `TOKEN_ADDRESS`, `CHAIN_ID`,
+- [X] T006 [US1] Settings and schema: `src/Shop.Api/Settings.cs` reads `TOKEN_ADDRESS`, `CHAIN_ID`,
   `EXPLORER_TX_URL`, `ORDER_PAYMENT_MINUTES` (default 30), `INTERNAL_TOKEN` (all optional; missing
   token address → payments unavailable, missing internal token → port 8081 not opened);
   `src/Shop.Api/Storage/Postgres/Scripts/004_payments.sql` and the Redis layout per data-model.md
@@ -124,7 +124,7 @@ stock once (quickstart Scenario 1, shop part).
   `Chain progress.seen_through_block`, `Chain progress.seen_through_time`; existing orders migrated
   as data-model.md says.
   Tests: migration on an 0.2.0 database, settings validation.
-- [ ] T007 [US1] Checkout and order lookup (contracts/shop-api.md "Public"): `POST /api/orders`
+- [X] T007 [US1] Checkout and order lookup (contracts/shop-api.md "Public"): `POST /api/orders`
   takes `payingAccount` (EIP-55, data-model.md `Order.paying_account`), stores
   `total_base_units = cents × 10^4` and `deadline`; the one-waiting-order rule (data-model.md
   "Uniqueness (FR-005a)": PostgreSQL partial unique index, Redis NX key in
@@ -132,11 +132,11 @@ stock once (quickstart Scenario 1, shop part).
   reference; 409 `paymentsUnavailable`; `GET /api/orders/{reference}`; `GET /api/shop` `payments`
   block. Files: `src/Shop.Api/Endpoints/Public.cs`, `src/Shop.Api/Storage/IShopStore.cs`, both
   stores. Tests on both stores, including two concurrent checkouts with one account (one wins).
-- [ ] T008 [US1] Internal endpoint (contracts/shop-internal-api.md): second Kestrel endpoint on
+- [X] T008 [US1] Internal endpoint (contracts/shop-internal-api.md): second Kestrel endpoint on
   8081 in `src/Shop.Api/Program.cs`, `src/Shop.Api/Endpoints/Internal.cs` with constant-time bearer
   check against `INTERNAL_TOKEN`; `/internal/*` answers 404 on 8080. Tests: 401 without/with wrong
   token, 404 on the public port, 400 for a foreign address.
-- [ ] T009 [US1] Matching (research R6; contracts/shop-internal-api.md "POST /internal/chain"):
+- [X] T009 [US1] Matching (research R6; contracts/shop-internal-api.md "POST /internal/chain"):
   `src/Shop.Api/Payments/Matching.cs`; PostgreSQL in one transaction per transfer, Redis
   `src/Shop.Api/Storage/Redis/Scripts/record_transfer.lua`; idempotent on (`tx`, `logIndex`);
   sets data-model.md `Payment.order_reference` on a match, otherwise `Payment.unmatched_reason`
@@ -144,7 +144,7 @@ stock once (quickstart Scenario 1, shop part).
   (data-model.md `Chain progress.seen_through_block`/`seen_through_time`); 204 only when all is
   stored. Tests on both stores: each reason, redelivery of the same range, two shop copies
   receiving the same transfer at once (Paid once).
-- [ ] T010 [US2] Expiry and waiting count (research R5; data-model.md "State transitions"):
+- [X] T010 [US2] Expiry and waiting count (research R5; data-model.md "State transitions"):
   `src/Shop.Api/Payments/ExpiryJob.cs` (hosted, every 15 s) expiring only when
   `deadline < now` and `deadline < seen_through_time` of the order's address, returning stock in
   the same step (PostgreSQL conditional update; Redis
@@ -152,18 +152,18 @@ stock once (quickstart Scenario 1, shop part).
   `GET /internal/wallets/{address}/waiting`. Tests: 3 concurrent jobs expire once and return stock
   once; no expiry while `seen_through_time` is behind the deadline; a deleted item gets nothing
   back; restart mid-way.
-- [ ] T011 [P] [US1] Storefront (contracts/shop-api.md "Angular"): `src/Shop.Web/src/app/checkout/`
+- [X] T011 [P] [US1] Storefront (contracts/shop-api.md "Angular"): `src/Shop.Web/src/app/checkout/`
   connect MetaMask and send `payingAccount`, link to the waiting order on 409;
   `src/Shop.Web/src/app/order/` order page with total, address, time left, status polling every
   5 s, "Pay with MetaMask" (switch chain, same-account check, mUSDT and ETH balance checks,
   `transfer`), "payment sent, confirming" from `localStorage`, "Get test mUSDT" (`mint`);
   `src/Shop.Web/src/app/shared/eip1193.ts` with the three selectors. Tests with a fake EIP-1193
   provider for each scenario of US1 (spec acceptance 1–6).
-- [ ] T012 [P] [US4] Admin view (contracts/shop-api.md "Admin"): order status, deadline and
+- [X] T012 [P] [US4] Admin view (contracts/shop-api.md "Admin"): order status, deadline and
   payment link in `GET /api/admin/orders`; `GET /api/admin/payments?matched=false`; Angular admin
   orders page status column and "Payments not matched" list in `src/Shop.Web/src/app/admin/`.
   Tests: API and component.
-- [ ] T013 [US1] Release shop: PR(s) with CI green → **ask before merge** → **ask before tag**
+- [X] T013 [US1] Release shop: PR(s) with CI green → **ask before merge** → **ask before tag**
   `v0.3.0` → image `ghcr.io/nikola031ue/shop:0.3.0`; record tag-to-image time here.
 
   Progress T006–T012 (2026-11-27):
@@ -201,8 +201,12 @@ stock once (quickstart Scenario 1, shop part).
     waiting check answers first); `/api/orders/../../etc` never reaches the endpoint (HttpClient
     normalises it), so a reference with a character outside the alphabet replaced it.
   - **Image:** the shop listens on 80 (not 8080); the image now also declares `EXPOSE 8081`.
+  - Merged as shop `4ea761e` (approved, 2026-11-27); main CI green.
+  - **T013 release:** `v0.3.0` tagged on `4ea761e` (approved). Tag pushed 11:42:01 UTC; the
+    `release` job finished 11:44:36, so **2 min 35 s** to `ghcr.io/nikola031ue/shop:0.3.0`; the
+    image can be pulled anonymously (HTTP 200).
 
-**Checkpoint**: shop 0.3.0 image published. It is not rolled out before T024 (together with
+**Checkpoint**: shop 0.3.0 image published (reached 2026-11-27). It is not rolled out before T024 (together with
 operator 0.4.0): under operator 0.3.1 it would refuse every checkout (`paymentsUnavailable`) and
 open no port 8081. Commit (spec repo).
 
