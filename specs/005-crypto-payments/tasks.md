@@ -269,6 +269,39 @@ waiting = 0; readiness false while old pods run (quickstart Scenario 1, operator
   still holds an unannotated Shop finishes within 60 s (namespace and Shop gone). PR → **ask
   before merge** → published.
 
+Progress T014–T018 (2026-11-27):
+  - **shop-operator PR #11** (branch `005-operator`): one PR for T014–T018, CI green.
+  - **T014 D-5:** `RolloutInProgress` (also `replicas == updatedReplicas`, no terminating
+    replicas). Unit table test; envtest: Progressing while an extra old copy runs, then Ready.
+  - **T015 wiring:**
+    - `<shop>-internal` (32-byte token, created once, owned by the Shop);
+    - the payment env, with `INTERNAL_TOKEN` as a `secretKeyRef`;
+    - port `internal` 8081 on the container and Service;
+    - a NetworkPolicy rule for 8081 from the operator's pods only (`--operator-pod-selector`).
+  - **T016–T017 watcher:** `internal/chain/watcher.go` with delivery through
+    `internal/shopapi` (its own package, to avoid an import cycle with the Wallet controller).
+    Anvil tests:
+    - delivered once, only after the confirmations;
+    - catch-up in ≤ N-block ranges;
+    - the cursor held while the shop fails;
+    - missing credentials reported;
+    - the URL's key never in status.
+  - **T018 D-1:** the Wallet finalizer is held (`WaitingForOrders`, with the reason) while the
+    shop rolls out or the shop reports waiting orders; released at once when the shop is
+    deleted.
+  - **Stall visibility (maintainer, 2026-11-27):**
+    - the watcher writes only `status.payments` (cursor, `lastError`);
+    - the Wallet controller derives `PaymentsWatching` every minute and reports `Stalled` when
+      the read position is older than `--payments-stall-after` (5 m);
+    - a watcher loop that stopped is visible, because the condition doesn't depend on it writing.
+  - **Checks:**
+    - envtest 87 specs and the Go unit tests pass; `golangci-lint` 0 issues;
+      `check-no-chain-hosts` clean (it caught Sepolia values in a new resource test, now
+      neutral);
+    - mutation checks, each caught: no confirmations; cursor advanced on a shop failure; no
+      paging; D-1 without the rollout check; D-1 ignoring the waiting count; no `Stalled`.
+  - **Test-only change:** `markDeploymentAvailable` lost its count parameter (always 2; lint).
+
 **Checkpoint**: operator 0.4.0 and chart 0.5.0 published. Commit (spec repo).
 
 ---

@@ -68,7 +68,8 @@ Redis: hash `shop:payment:<tx>:<logIndex>`, sorted set `shop:payments` by block 
 |-------|---------|
 | `status.payments.scannedThroughBlock` | Last confirmed block whose transfers the owning shop accepted (R3) |
 | `status.payments.scannedThroughTime` | That block's time |
-| condition `PaymentsWatching` | `True`; or `False` with reason `RPCCredentialsMissing`, `TokenNotConfigured`, `ShopUnreachable`, `ProviderError` |
+| `status.payments.lastError`, `lastErrorMessage`, `lastErrorTime` | The watcher's last failure for this address (`RPCCredentialsMissing`, `ProviderError`, `ShopUnreachable`); cleared by its next success; never the provider URL |
+| condition `PaymentsWatching` | Written only by the Wallet controller, from the fields above, every minute: `True/Watching`; or `False` with `TokenNotConfigured`, `Starting`, the watcher's `lastError`, or **`Stalled`** when `scannedThroughTime` is older than `payments.stallAfter` (a watcher that stopped is visible although it writes nothing; maintainer, 2026-11-27) |
 | condition `Ready`, reason `WaitingForOrders` | Deletion held by D-1 (R9): message names the open-order count or the rollout |
 
 Spec is unchanged (no CRD schema change beyond status fields; chart bumps the CRD).
@@ -105,6 +106,8 @@ Spec is unchanged (no CRD schema change beyond status fields; chart bumps the CR
 | `payments.orderPaymentMinutes` | public | `30` |
 | `payments.explorerTxUrl` | public | `https://sepolia.etherscan.io/tx/` |
 | `payments.rpcSecretName` | Secret reference | `shop-operator-rpc` (key `url`), **made by hand**, optional like the Discord token |
+| `payments.stallAfter` | public | `5m` |
+| `operatorPodSelector` (flag `--operator-pod-selector`) | public | the operator pods' labels; the only peers admitted on a shop's port 8081 |
 | `shopDeleteGuard.enabled` | public | `true`: the ValidatingAdmissionPolicy and its binding (R11) |
 
 ## ShopHub (repo `shophub`)

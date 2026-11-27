@@ -10,10 +10,14 @@
   toBlock}`; group logs by `to`; for every Wallet whose cursor is below the range end, post
   `/internal/chain` to its shop (label `shophub.io/shop`) with that Wallet's transfers in
   `(cursor, rangeEnd]` and `seenThrough = rangeEnd`; on 204 patch the Wallet's cursor.
-- A shop that fails (timeout 5 s, non-2xx) keeps its cursor; condition
-  `PaymentsWatching=False, reason ShopUnreachable`; others go on.
-- Provider errors: back off (12 s → 2 min), condition `ProviderError`; no cursor moves.
-- No RPC Secret: idle, `RPCCredentialsMissing`. No `tokenAddress`: idle, `TokenNotConfigured`.
+- A shop that fails (timeout 5 s, non-2xx) keeps its cursor and gets `status.payments.lastError =
+  ShopUnreachable`; others go on.
+- Provider errors: back off (12 s → 2 min), `lastError = ProviderError`; no cursor moves.
+- No RPC Secret: `lastError = RPCCredentialsMissing`. No `tokenAddress`: the watcher idles.
+- The watcher writes only `status.payments`. The **Wallet controller** derives `PaymentsWatching`
+  from it every minute: `TokenNotConfigured`, `Starting`, the watcher's `lastError`, **`Stalled`**
+  (chain read further behind than `--payments-stall-after`, 5 m: a stopped watcher writes nothing,
+  so the controller notices), else `Watching`.
 - The RPC URL is never logged (only its host), never in status or events.
 
 ## Wallet deletion (D-1, research R9)
