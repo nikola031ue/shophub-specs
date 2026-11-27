@@ -488,6 +488,22 @@ denied; a status with an older `observedGeneration` maps to "being prepared".
 - [ ] T025 Live payments with the maintainer in the browser (M4 wallets): quickstart Scenarios 3
   (pay, FR-005a refusal), 4 (wrong amount, wrong account, duplicate) and 5 (expiry on a `high`
   shop, then a late payment); record SC-001, SC-002, SC-003 timings here.
+
+  Progress (2026-11-27, shop `sryrc3a77a`: high, Redis, 3/3 on `shop:0.3.0`, receiving account C
+  `0x4289…CE80`, operator 0.4.1):
+  - An order the maintainer thought was placed before the steps did not exist: no order in the
+    shop's data, and no transaction from A. Started fresh.
+  - **Scenario 3, order `RZTS29P0GM`** (2 × Item 1, 3.00; created 20:55:54 UTC, deadline 21:25:54):
+    - stock of Item 1 went from 5 to 3 when the order was placed;
+    - A minted 1000 (now 997 after paying);
+    - payment tx `0x71194dc0…7373` was in block 12225702 at 20:59:24 UTC; the shop recorded it
+      at 21:00:42 (78 s: 6 confirmations plus one poll), status `Paid`, the only payment;
+    - C received exactly 3.000000 mUSDT, and nothing is left waiting;
+    - A is a MetaMask EIP-7702 smart account, so its tx went through a MetaMask contract, not
+      straight to the token. The match works anyway, because the shop matches on the token's
+      Transfer event (`from` = A), not on the tx sender.
+    - SC-001 (≤ 2 min from Confirm to Paid): 78 s from the block onward; the click-to-block
+      time wasn't measured.
 - [ ] T026 Live paths: quickstart Scenarios 6 (operator scaled to 0 for 15 min, hand change
   recorded), 7 (wallet change with a waiting order: D-6 within 5 s, D-5, D-1 hold and release),
   8 (`kubectl delete shop` denied by the guard, hand attempt recorded) and 9 (delete through
