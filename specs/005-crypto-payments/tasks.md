@@ -69,7 +69,7 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   - **Fix on the way:** the first CI run failed with "receipt: not found". Anvil's receipt can lag
     the send on a slow runner, so the helper now waits for it (30 s, 100 ms steps).
   - Merged as shop-operator `f54cecf` (approved, 2026-11-27).
-- [ ] T004 [MANUAL] **M3 Remix deploy** (only after T003 is merged, so the deployed source is the
+- [X] T004 [MANUAL] **M3 Remix deploy** (only after T003 is merged, so the deployed source is the
   reviewed, tested one): maintainer deploys `contracts/MockUSDT.sol` from `main` on Sepolia
   from their own MetaMask with the settings in `contracts/README.md`, and verifies the source on
   the explorer (quickstart M3). Agent records the address in `contracts/README.md` (PR, ask before
@@ -82,6 +82,15 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   - Remix compile (before deploy, 2026-11-27): code before the metadata **matches** the
     committed build byte for byte (2,373 bytes); only the 51-byte CBOR metadata differs, as
     expected. Its trailer says solc 0.8.28.
+  - **Deployed** (maintainer, 2026-11-27): **`0xdF8d5dEb736EBC79f7e99C4c90975d4b8f8d80E2`** on
+    Sepolia (EIP-55 checksum valid).
+  - **Checked read-only** through a public keyless endpoint (the RPC Secret wasn't used):
+    - chain id `0xaa36a7`;
+    - the runtime code, with the metadata stripped, is the runtime part of the committed build;
+    - name "Mock USDT", symbol mUSDT, 6 decimals, `MAX_MINT` 1,000,000,000, total supply 0;
+    - Sourcify: exact match for creation and runtime (verified 10:54:46 UTC).
+  - **README:** address recorded in `contracts/README.md` in shop-operator PR #10 (waiting for
+    merge approval). It goes into kube-state in T024.
 - [ ] T005 [MANUAL] **M4 tester wallets**: maintainer prepares MetaMask accounts A and B with
   Sepolia ETH from a public faucet (quickstart M4). Needed by Phase 4 only.
 
@@ -89,6 +98,8 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
   Sepolia ETH.
 
 **Checkpoint**: token on Anvil in CI; address known; Secret present. Commit (spec repo).
+Phase 0 reached 2026-11-27: T001–T004 done. T005: accounts A and B named, B still being funded
+(needed in Phase 4 only).
 
 ---
 
