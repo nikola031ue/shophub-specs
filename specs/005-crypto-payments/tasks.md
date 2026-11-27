@@ -166,6 +166,42 @@ stock once (quickstart Scenario 1, shop part).
 - [ ] T013 [US1] Release shop: PR(s) with CI green → **ask before merge** → **ask before tag**
   `v0.3.0` → image `ghcr.io/nikola031ue/shop:0.3.0`; record tag-to-image time here.
 
+  Progress T006–T012 (2026-11-27):
+  - **shop PR #9** (branch `005-payments`): one PR for T006–T012, CI green.
+  - **Store:** PostgreSQL script `004_payments.sql`; Redis schema 2 (an order's JSON is never
+    rewritten, its payment state is a hash `shop:order-state:{ref}`, so totals are never
+    re-encoded by Lua).
+  - **Rules:**
+    - one waiting order per account: partial unique index or NX key; the concurrent-checkout
+      race is turned into `waitingOrder`;
+    - matching in `PaymentMatching.Decide` (C#) and `record_transfer.lua`, both held to the
+      same contract tests;
+    - expiry only behind chain progress, stock back in the same step.
+  - **Internal API:** Kestrel listener on `INTERNAL_PORT` (8081) only with `INTERNAL_TOKEN`. Its
+    connections are marked, so a forged `Host` header doesn't help; constant-time bearer check;
+    the listener serves only `/internal`; `/internal/*` is 404 on the public port.
+  - **Settings:** all optional, so 0.3.0 also starts under operator 0.3.1 (payments unavailable).
+  - **Angular:**
+    - EIP-1193 without a library (`shared/eip1193.ts`, `store/wallet.ts`);
+    - checkout "Connect MetaMask";
+    - new `store/order-page.ts` (replaces `order-placed.ts`);
+    - admin "Payments not matched".
+  - **Tests:** 281 .NET (both stores; real Kestrel ports for the internal API; upgrade from
+    0.2.0 on both stores; settings; EIP-55) and 35 Angular. `dotnet format` and `ng lint` are
+    clean.
+  - **Mutation checks**, each caught by a failing test:
+    - no chain-progress guard (both stores);
+    - no Redis idempotence;
+    - no unique index;
+    - internal filter without the connection mark;
+    - no listener scope.
+  - **Contract change:** status values stay spec 003's PascalCase (`PendingPayment`, `Paid`,
+    `Expired`), as now written in contracts/shop-api.md.
+  - **Test-only fixes on the way:** a reference-collision test now uses another account (the
+    waiting check answers first); `/api/orders/../../etc` never reaches the endpoint (HttpClient
+    normalises it), so a reference with a character outside the alphabet replaced it.
+  - **Image:** the shop listens on 80 (not 8080); the image now also declares `EXPOSE 8081`.
+
 **Checkpoint**: shop 0.3.0 image published. It is not rolled out before T024 (together with
 operator 0.4.0): under operator 0.3.1 it would refuse every checkout (`paymentsUnavailable`) and
 open no port 8081. Commit (spec repo).

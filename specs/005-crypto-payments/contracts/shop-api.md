@@ -16,7 +16,7 @@ mUSDT base units (6 decimals) plus a display string, so no client does floating 
 ```json
 {
   "reference": "34JV98Z2TH",
-  "status": "pendingPayment | paid | expired",
+  "status": "PendingPayment | Paid | Expired",
   "lines": [{"name": "…", "unitPriceCents": 1100, "quantity": 1}],
   "totalCents": 1100,
   "totalBaseUnits": "11000000",
@@ -27,7 +27,9 @@ mUSDT base units (6 decimals) plus a display string, so no client does floating 
 }
 ```
 
-`payment` only when paid. The page polls this every 5 s while `pendingPayment`.
+`payment` only when paid. Status values are spec 003's (`PendingPayment`) plus `Paid` and `Expired`,
+kept in that form so existing clients don't change. The page polls this every 5 s while
+`PendingPayment`.
 
 ## Admin (session as 003)
 
