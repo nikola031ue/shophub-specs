@@ -29,13 +29,17 @@ Repos are siblings of `shophub-specs`: `../shop`, `../shop-operator`, `../shophu
 
 **Purpose**: everything the code needs from outside, and the token every later test uses.
 
-- [ ] T001 [MANUAL] **M1 provider account**: maintainer creates a free Sepolia endpoint at Infura
+- [X] T001 [MANUAL] **M1 provider account**: maintainer creates a free Sepolia endpoint at Infura
   or Alchemy (quickstart M1). Done when the maintainer confirms an HTTPS endpoint URL with key
   exists; nothing is recorded anywhere.
-- [ ] T002 [MANUAL] **M2 RPC Secret**: maintainer runs
+- [X] T002 [MANUAL] **M2 RPC Secret**: maintainer runs
   `kubectl create secret generic shop-operator-rpc -n shop-operator-system --from-literal=url="$SEPOLIA_RPC_URL"`
   on docker-desktop (quickstart M2; data-model.md "Platform settings and Secrets"
   `payments.rpcSecretName`). Agent checks only that key `url` is non-empty (prints its length).
+
+  Done (maintainer, 2026-11-27). Checked on docker-desktop without printing it: Secret
+  `shop-operator-rpc` has only key `url`, 58 characters, starts with `https://`, no surrounding
+  whitespace. M1 is done by implication (the endpoint exists).
 - [X] T003 Token source and tests in shop-operator (contracts/musdt.md, research R8):
   `contracts/MockUSDT.sol` (OpenZeppelin ERC20 pinned, 6 decimals, `mint` capped at 1,000 mUSDT,
   `MintTooLarge()`); compiled `contracts/build/MockUSDT.{abi,bin}` with a pinned `solc`;
